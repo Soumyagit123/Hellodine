@@ -1,0 +1,80 @@
+import { useState, FormEvent } from "react";
+import { useNavigate } from "react-router-dom";
+import api from "../api/client";
+
+export default function Login() {
+    const navigate = useNavigate();
+    const [phone, setPhone] = useState("");
+    const [password, setPassword] = useState("");
+    const [error, setError] = useState("");
+    const [loading, setLoading] = useState(false);
+
+    async function handleSubmit(e: FormEvent) {
+        e.preventDefault();
+        setLoading(true);
+        setError("");
+        try {
+            const form = new FormData();
+            form.append("username", phone);
+            form.append("password", password);
+            const res = await api.post("/auth/login", form, {
+                headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            });
+            localStorage.setItem("hd_token", res.data.access_token);
+            localStorage.setItem("hd_staff", JSON.stringify(res.data));
+            navigate("/orders");
+        } catch {
+            setError("Invalid phone or PIN. Please try again.");
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    return (
+        <div className="login-wrap">
+            <div className="card login-card">
+                <div className="login-logo">🍽️ HelloDine</div>
+                <p className="login-sub">Kitchen & Cashier Dashboard</p>
+
+                <form onSubmit={handleSubmit}>
+                    <div className="input-group">
+                        <label className="input-label">Phone Number</label>
+                        <input
+                            id="phone"
+                            className="input"
+                            type="tel"
+                            placeholder="+91 9876543210"
+                            value={phone}
+                            onChange={(e) => setPhone(e.target.value)}
+                            required
+                        />
+                    </div>
+                    <div className="input-group">
+                        <label className="input-label">Password / PIN</label>
+                        <input
+                            id="password"
+                            className="input"
+                            type="password"
+                            placeholder="••••••••"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            required
+                        />
+                    </div>
+
+                    {error && (
+                        <p style={{ color: "var(--red)", fontSize: "0.85rem", marginBottom: "12px" }}>{error}</p>
+                    )}
+
+                    <button id="login-btn" className="btn btn-primary" style={{ width: "100%", justifyContent: "center", padding: "12px" }} disabled={loading}>
+                        {loading ? "Signing in…" : "Sign In →"}
+                    </button>
+                </form>
+
+                <p className="text-muted text-sm" style={{ marginTop: "20px", textAlign: "center" }}>
+                    Powered by HelloDine v1.0
+                </p>
+            </div>
+        </div>
+    );
+}

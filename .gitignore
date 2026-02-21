@@ -1,0 +1,21 @@
+# Python / Virtual Environment
+venv/
+__pycache__/
+*.pyc
+.env
+
+# Node.js
+node_modules/
+dist/
+build/
+.npm/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# Logs
+backend/.system_generated/
+*.log

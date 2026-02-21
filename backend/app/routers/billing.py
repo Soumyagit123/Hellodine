@@ -1,0 +1,143 @@
+"""Billing router — /api/billing"""
+import uuid
+from datetime import datetime, timezone
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, func, cast, Date
+from sqlalchemy.orm import selectinload
+from pydantic import BaseModel
+from typing import Optional
+import time
+
+from app.database import get_db
+from app.models.billing import Bill, Payment, BillStatus, PaymentMethod
+from app.models.orders import Order, OrderStatus
+from app.models.customers import TableSession, SessionStatus
+
+router = APIRouter(prefix="/api/billing", tags=["billing"])
+
+
+class PayRequest(BaseModel):
+    method: PaymentMethod
+    amount: float
+    upi_vpa: Optional[str] = None
+    upi_reference_id: Optional[str] = None
+    received_by_staff_user_id: Optional[uuid.UUID] = None
+
+
+@router.post("/generate")
+async def generate_bill(session_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
+    """Aggregate all non-cancelled orders for a session into a consolidated bill."""
+    # Check existing unpaid bill
+    existing = await db.execute(
+        select(Bill).where(Bill.session_id == session_id, Bill.status == BillStatus.UNPAID)
+    )
+    existing_bill = existing.scalar_one_or_none()
+    if existing_bill:
+        return existing_bill
+
+    orders_result = await db.execute(
+        select(Order).where(
+            Order.session_id == session_id,
+            Order.status.notin_([OrderStatus.CANCELLED]),
+        )
+    )
+    orders = orders_result.scalars().all()
+    if not orders:
+        raise HTTPException(400, "No open orders to bill")
+
+    sess_result = await db.execute(select(TableSession).where(TableSession.id == session_id))
+    session = sess_result.scalar_one()
+
+    subtotal = sum(o.subtotal for o in orders)
+    cgst = sum(o.cgst_amount for o in orders)
+    sgst = sum(o.sgst_amount for o in orders)
+    total = sum(o.total for o in orders)
+    bill_number = f"BILL-{int(time.time() * 1000) % 10_000_000}"
+
+    bill = Bill(
+        branch_id=session.branch_id,
+        table_id=session.table_id,
+        session_id=session_id,
+        bill_number=bill_number,
+        subtotal=subtotal,
+        cgst_amount=cgst,
+        sgst_amount=sgst,
+        total=total,
+        status=BillStatus.UNPAID,
+    )
+    db.add(bill)
+    await db.commit()
+    await db.refresh(bill)
+    return bill
+
+
+@router.post("/{bill_id}/pay")
+async def pay_bill(bill_id: uuid.UUID, data: PayRequest, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Bill).where(Bill.id == bill_id))
+    bill = result.scalar_one_or_none()
+    if not bill:
+        raise HTTPException(404, "Bill not found")
+    if bill.status == BillStatus.PAID:
+        raise HTTPException(400, "Bill already paid")
+
+    payment = Payment(
+        bill_id=bill_id,
+        method=data.method,
+        amount=data.amount,
+        upi_vpa=data.upi_vpa,
+        upi_reference_id=data.upi_reference_id,
+        received_by_staff_user_id=data.received_by_staff_user_id,
+    )
+    db.add(payment)
+    bill.status = BillStatus.PAID
+    bill.closed_at = datetime.now(timezone.utc)
+
+    # Close session
+    sess_result = await db.execute(select(TableSession).where(TableSession.id == bill.session_id))
+    sess = sess_result.scalar_one()
+    sess.status = SessionStatus.CLOSED
+    sess.closed_at = datetime.now(timezone.utc)
+
+    await db.commit()
+    return {"ok": True, "bill_number": bill.bill_number, "amount_paid": data.amount}
+
+
+@router.get("/table/{table_id}/open")
+async def get_open_bill(table_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(
+        select(Bill).where(Bill.table_id == table_id, Bill.status == BillStatus.UNPAID)
+        .order_by(Bill.created_at.desc())
+    )
+    bills = result.scalars().all()
+    return bills
+
+
+@router.get("/report/daily")
+async def daily_report(branch_id: uuid.UUID, date: str, db: AsyncSession = Depends(get_db)):
+    """Basic daily sales report for admin."""
+    from datetime import datetime
+    
+    # Parse the incoming "YYYY-MM-DD" string
+    target_date = datetime.strptime(date, "%Y-%m-%d").date()
+    
+    result = await db.execute(
+        select(
+            func.count(Bill.id).label("total_bills"),
+            func.sum(Bill.total).label("total_revenue"),
+            func.sum(Bill.cgst_amount).label("total_cgst"),
+            func.sum(Bill.sgst_amount).label("total_sgst"),
+        ).where(
+            Bill.branch_id == branch_id,
+            Bill.status == BillStatus.PAID,
+            cast(Bill.created_at, Date) == target_date,
+        )
+    )
+    row = result.one()
+    return {
+        "date": date,
+        "total_bills": row.total_bills or 0,
+        "total_revenue": float(row.total_revenue or 0),
+        "total_cgst": float(row.total_cgst or 0),
+        "total_sgst": float(row.total_sgst or 0),
+    }
