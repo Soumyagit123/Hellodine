@@ -1,6 +1,8 @@
 import axios from "axios";
 
 const api = axios.create({ baseURL: import.meta.env.VITE_API_URL || "/api" });
+console.log("DEBUG: VITE_API_URL =", import.meta.env.VITE_API_URL);
+console.log("DEBUG: Final Base URL =", api.defaults.baseURL);
 
 api.interceptors.request.use((config) => {
     const token = localStorage.getItem("hd_token");
