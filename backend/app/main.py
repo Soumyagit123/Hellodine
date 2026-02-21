@@ -10,9 +10,7 @@ from app.routers import auth, restaurant, menu, cart, orders, billing, webhook
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Auto-create all tables on startup (dev convenience; use Alembic in prod)
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    # Tables are already created via migrations/seeding
     yield
 
 
