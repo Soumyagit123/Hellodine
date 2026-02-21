@@ -106,9 +106,8 @@ export default function OrdersBoard() {
         if (!branchId) return;
         fetchOrders();
 
-        // WebSocket for realtime updates
-        const baseUrl = import.meta.env.VITE_WS_URL || `${window.location.protocol === "https:" ? "wss" : "ws"}://${window.location.host}`;
-        const wsUrl = `${baseUrl}/api/orders/ws/kitchen/${branchId}`;
+        // WebSocket for realtime updates (Hardcoded for Production)
+        const wsUrl = `wss://hellodine-api.onrender.com/api/orders/ws/kitchen/${branchId}`;
         const ws = new WebSocket(wsUrl);
         wsRef.current = ws;
 
