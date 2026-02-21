@@ -107,7 +107,8 @@ export default function OrdersBoard() {
         fetchOrders();
 
         // WebSocket for realtime updates
-        const wsUrl = `${window.location.protocol === "https:" ? "wss" : "ws"}://${window.location.host}/api/orders/ws/kitchen/${branchId}`;
+        const baseUrl = import.meta.env.VITE_WS_URL || `${window.location.protocol === "https:" ? "wss" : "ws"}://${window.location.host}`;
+        const wsUrl = `${baseUrl}/api/orders/ws/kitchen/${branchId}`;
         const ws = new WebSocket(wsUrl);
         wsRef.current = ws;
 
