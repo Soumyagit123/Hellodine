@@ -68,11 +68,20 @@ function Sidebar() {
 }
 
 function ProtectedLayout() {
+    const [sidebarOpen, setSidebarOpen] = useState(false);
     if (!isLoggedIn()) return <Navigate to="/login" replace />;
+
     return (
         <div className="app-shell">
-            <Sidebar />
+            <div className={`sidebar-overlay ${sidebarOpen ? "show" : ""}`} onClick={() => setSidebarOpen(false)} />
+            <aside className={`sidebar ${sidebarOpen ? "open" : ""}`}>
+                <Sidebar hideSidebar={() => setSidebarOpen(false)} />
+            </aside>
             <main className="main-content">
+                <header className="mobile-header">
+                    <button className="menu-btn" onClick={() => setSidebarOpen(true)}>☰</button>
+                    <div className="logo-text">HelloDine</div>
+                </header>
                 <Routes>
                     <Route path="/orders" element={<OrdersBoard />} />
                     <Route path="/billing" element={<Billing />} />
