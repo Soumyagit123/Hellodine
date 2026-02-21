@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { BrowserRouter, Routes, Route, Navigate, NavLink, useNavigate } from "react-router-dom";
 import Login from "./pages/Login";
 import OrdersBoard from "./pages/OrdersBoard";
@@ -20,7 +21,7 @@ function getRole() {
     }
 }
 
-function Sidebar() {
+function Sidebar({ hideSidebar }: { hideSidebar: () => void }) {
     const navigate = useNavigate();
     const role = getRole();
 
@@ -36,12 +37,12 @@ function Sidebar() {
                 HelloDine
             </div>
 
-            <NavLink to="/orders" className={({ isActive }) => `nav-link${isActive ? " active" : ""}`}>
+            <NavLink to="/orders" className={({ isActive }) => `nav-link${isActive ? " active" : ""}`} onClick={hideSidebar}>
                 🍽️ Orders
             </NavLink>
 
             {(role === "CASHIER" || role === "BRANCH_ADMIN" || role === "SUPER_ADMIN") && (
-                <NavLink to="/billing" className={({ isActive }) => `nav-link${isActive ? " active" : ""}`}>
+                <NavLink to="/billing" className={({ isActive }) => `nav-link${isActive ? " active" : ""}`} onClick={hideSidebar}>
                     💰 Billing
                 </NavLink>
             )}
@@ -51,10 +52,10 @@ function Sidebar() {
                     <div style={{ margin: "16px 0 8px", fontSize: "0.72rem", textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-muted)", padding: "0 14px" }}>
                         Admin
                     </div>
-                    <NavLink to="/admin/menu" className={({ isActive }) => `nav-link${isActive ? " active" : ""}`}>📋 Menu</NavLink>
-                    <NavLink to="/admin/tables" className={({ isActive }) => `nav-link${isActive ? " active" : ""}`}>🪑 Tables</NavLink>
-                    <NavLink to="/admin/staff" className={({ isActive }) => `nav-link${isActive ? " active" : ""}`}>👤 Staff</NavLink>
-                    <NavLink to="/admin/report" className={({ isActive }) => `nav-link${isActive ? " active" : ""}`}>📊 Daily Report</NavLink>
+                    <NavLink to="/admin/menu" className={({ isActive }) => `nav-link${isActive ? " active" : ""}`} onClick={hideSidebar}>📋 Menu</NavLink>
+                    <NavLink to="/admin/tables" className={({ isActive }) => `nav-link${isActive ? " active" : ""}`} onClick={hideSidebar}>🪑 Tables</NavLink>
+                    <NavLink to="/admin/staff" className={({ isActive }) => `nav-link${isActive ? " active" : ""}`} onClick={hideSidebar}>👤 Staff</NavLink>
+                    <NavLink to="/admin/report" className={({ isActive }) => `nav-link${isActive ? " active" : ""}`} onClick={hideSidebar}>📊 Daily Report</NavLink>
                 </>
             )}
 
