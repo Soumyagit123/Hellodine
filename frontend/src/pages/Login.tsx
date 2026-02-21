@@ -34,6 +34,7 @@ export default function Login() {
         <div className="login-wrap">
             <div className="card login-card">
                 <div className="login-logo">🍽️ HelloDine</div>
+                <p className="login-sub" style={{ color: "var(--primary)", fontWeight: "bold" }}>v2.0-NUCLEAR (LINKED TO RENDER)</p>
                 <p className="login-sub">Kitchen & Cashier Dashboard</p>
 
                 <form onSubmit={handleSubmit}>
