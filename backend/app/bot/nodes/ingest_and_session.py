@@ -157,6 +157,19 @@ async def resolve_session(state: BotState) -> BotState:
             ).order_by(TableSession.started_at.desc())
         )
         session = sess_result.scalar_one_or_none()
+        
+        # ── Inactivity Timeout (2 Hours) ──────────────────────────
+        # If the customer hasn't messaged in 2 hours, expire the session
+        # so they can't order remotely later.
+        if session:
+            now = datetime.now(timezone.utc)
+            delta = now - session.last_message_at
+            if delta.total_seconds() > (2 * 3600):
+                session.status = SessionStatus.CLOSED
+                session.closed_at = now
+                await db.commit()
+                session = None
+
         if not session:
             state["error"] = "no_session"
             return state
