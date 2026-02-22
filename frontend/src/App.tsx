@@ -96,6 +96,11 @@ function ProtectedLayout() {
                     <div className="logo-text">HelloDine</div>
                 </header>
                 <Routes>
+                    <Route path="/" element={
+                        getRole() === "SYSTEM_ADMIN"
+                            ? <Navigate to="/system" replace />
+                            : <Navigate to="/orders" replace />
+                    } />
                     <Route path="/orders" element={<OrdersBoard />} />
                     <Route path="/billing" element={<Billing />} />
                     <Route path="/admin/menu" element={<MenuAdmin />} />
@@ -104,7 +109,11 @@ function ProtectedLayout() {
                     <Route path="/admin/report" element={<DailyReport />} />
                     <Route path="/admin/branches" element={<BranchAdmin />} />
                     <Route path="/system" element={<SystemAdmin />} />
-                    <Route path="*" element={<Navigate to="/orders" replace />} />
+                    <Route path="*" element={
+                        getRole() === "SYSTEM_ADMIN"
+                            ? <Navigate to="/system" replace />
+                            : <Navigate to="/orders" replace />
+                    } />
                 </Routes>
             </main>
         </div>

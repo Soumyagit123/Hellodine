@@ -22,7 +22,12 @@ export default function Login() {
             });
             localStorage.setItem("hd_token", res.data.access_token);
             localStorage.setItem("hd_staff", JSON.stringify(res.data));
-            navigate("/orders");
+
+            if (res.data.role === "SYSTEM_ADMIN") {
+                navigate("/system");
+            } else {
+                navigate("/orders");
+            }
         } catch {
             setError("Invalid phone or PIN. Please try again.");
         } finally {
