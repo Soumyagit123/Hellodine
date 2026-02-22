@@ -15,6 +15,7 @@ export default function SystemAdmin() {
     const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
     const [loading, setLoading] = useState(true);
     const [showAdd, setShowAdd] = useState(false);
+    const [editTarget, setEditTarget] = useState<Restaurant | null>(null);
     const [formData, setFormData] = useState({
         name: "",
         whatsapp_phone_number_id: "",
@@ -49,6 +50,33 @@ export default function SystemAdmin() {
         }
     };
 
+    const handleUpdate = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!editTarget) return;
+        try {
+            await client.patch(`/admin/restaurants/${editTarget.id}`, {
+                name: formData.name,
+                max_branches: formData.max_branches,
+                whatsapp_phone_number_id: formData.whatsapp_phone_number_id,
+                whatsapp_display_number: formData.whatsapp_display_number
+            });
+            setEditTarget(null);
+            fetchRestaurants();
+        } catch (err) {
+            alert("Failed to update restaurant");
+        }
+    };
+
+    const openEdit = (r: Restaurant) => {
+        setEditTarget(r);
+        setFormData({
+            name: r.name,
+            whatsapp_phone_number_id: r.whatsapp_phone_number_id,
+            whatsapp_display_number: r.whatsapp_display_number,
+            max_branches: r.max_branches
+        });
+    };
+
     if (loading) return <div className="p-8">Loading System Dashboard...</div>;
 
     return (
@@ -58,14 +86,14 @@ export default function SystemAdmin() {
                     <h1 style={{ fontSize: "2rem", fontWeight: 800 }}>Provider Dashboard</h1>
                     <p style={{ color: "var(--text-muted)" }}>Manage restaurants and branch limits</p>
                 </div>
-                <button className="btn-primary" onClick={() => setShowAdd(true)}>+ Onboard Restaurant</button>
+                <button className="btn-primary" onClick={() => { setEditTarget(null); setShowAdd(true); }}>+ Onboard Restaurant</button>
             </header>
 
-            {showAdd && (
+            {(showAdd || editTarget) && (
                 <div className="modal-overlay">
                     <div className="modal" style={{ maxWidth: "500px" }}>
-                        <h2>Onboard New Restaurant</h2>
-                        <form onSubmit={handleCreate} style={{ marginTop: "20px" }}>
+                        <h2>{editTarget ? "Edit Restaurant" : "Onboard New Restaurant"}</h2>
+                        <form onSubmit={editTarget ? handleUpdate : handleCreate} style={{ marginTop: "20px" }}>
                             <div className="input-group">
                                 <label className="input-label">Restaurant Name</label>
                                 <input
@@ -111,8 +139,8 @@ export default function SystemAdmin() {
                                 </p>
                             </div>
                             <div style={{ display: "flex", gap: "12px", marginTop: "24px" }}>
-                                <button type="submit" className="btn-primary" style={{ flex: 1 }}>Onboard</button>
-                                <button type="button" className="btn-secondary" onClick={() => setShowAdd(false)}>Cancel</button>
+                                <button type="submit" className="btn-primary" style={{ flex: 1 }}>{editTarget ? "Save Changes" : "Onboard"}</button>
+                                <button type="button" className="btn-secondary" onClick={() => { setShowAdd(false); setEditTarget(null); }}>Cancel</button>
                             </div>
                         </form>
                     </div>
@@ -128,6 +156,7 @@ export default function SystemAdmin() {
                             <th style={{ padding: "16px", textAlign: "center" }}>Branch Limit</th>
                             <th style={{ padding: "16px", textAlign: "center" }}>Status</th>
                             <th style={{ padding: "16px", textAlign: "right" }}>Joined</th>
+                            <th style={{ padding: "16px", textAlign: "center" }}>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -156,6 +185,11 @@ export default function SystemAdmin() {
                                 </td>
                                 <td style={{ padding: "16px", textAlign: "right", color: "var(--text-muted)", fontSize: "0.85rem" }}>
                                     {new Date(r.created_at).toLocaleDateString()}
+                                </td>
+                                <td style={{ padding: "16px", textAlign: "center" }}>
+                                    <button className="btn-secondary" style={{ padding: "6px 12px", fontSize: "0.8rem" }} onClick={() => openEdit(r)}>
+                                        ✏️ Edit
+                                    </button>
                                 </td>
                             </tr>
                         ))}

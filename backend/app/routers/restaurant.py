@@ -22,6 +22,13 @@ class RestaurantCreate(BaseModel):
     whatsapp_phone_number_id: str
     whatsapp_display_number: str
 
+class RestaurantUpdate(BaseModel):
+    name: str | None = None
+    max_branches: int | None = None
+    is_active: bool | None = None
+    whatsapp_phone_number_id: str | None = None
+    whatsapp_display_number: str | None = None
+
 
 class BranchCreate(BaseModel):
     restaurant_id: uuid.UUID
@@ -69,8 +76,33 @@ async def create_restaurant(data: RestaurantCreate, db: AsyncSession = Depends(g
 
 @router.get("/restaurants")
 async def list_restaurants(db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(Restaurant))
+    result = await db.execute(select(Restaurant).order_by(Restaurant.created_at.desc()))
     return result.scalars().all()
+
+
+@router.get("/restaurants/{restaurant_id}")
+async def get_restaurant(restaurant_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Restaurant).where(Restaurant.id == restaurant_id))
+    r = result.scalar_one_or_none()
+    if not r:
+        raise HTTPException(404, "Restaurant not found")
+    return r
+
+
+@router.patch("/restaurants/{restaurant_id}")
+async def update_restaurant(restaurant_id: uuid.UUID, data: RestaurantUpdate, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Restaurant).where(Restaurant.id == restaurant_id))
+    r = result.scalar_one_or_none()
+    if not r:
+        raise HTTPException(404, "Restaurant not found")
+
+    update_data = data.model_dump(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(r, key, value)
+
+    await db.commit()
+    await db.refresh(r)
+    return r
 
 
 # ─── Branches ────────────────────────────────────────────────────────────────

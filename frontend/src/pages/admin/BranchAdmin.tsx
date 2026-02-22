@@ -32,8 +32,12 @@ export default function BranchAdmin() {
 
     useEffect(() => {
         if (restaurantId) {
-            fetchBranches();
-            fetchRestaurantInfo();
+            Promise.all([
+                fetchBranches(),
+                fetchRestaurantInfo()
+            ]).finally(() => setLoading(false));
+        } else {
+            setLoading(false);
         }
     }, [restaurantId]);
 
@@ -43,19 +47,16 @@ export default function BranchAdmin() {
             setBranches(res.data);
         } catch (err) {
             console.error("Failed to fetch branches", err);
-        } finally {
-            setLoading(false);
         }
     };
 
     const fetchRestaurantInfo = async () => {
         try {
-            // We'll need a way to get the current restaurant's max_branches
-            // For now, we can get it from the list of restaurants or a specific endpoint
-            const res = await client.get("/admin/restaurants");
-            const mine = res.data.find((r: any) => r.id === restaurantId);
-            if (mine) setMaxBranches(mine.max_branches);
-        } catch { }
+            const res = await client.get(`/admin/restaurants/${restaurantId}`);
+            if (res.data) setMaxBranches(res.data.max_branches);
+        } catch (err) {
+            console.error("Failed to fetch restaurant info", err);
+        }
     };
 
     const handleCreate = async (e: React.FormEvent) => {
