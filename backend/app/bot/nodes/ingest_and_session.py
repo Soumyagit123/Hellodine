@@ -39,21 +39,21 @@ async def ingest_webhook(state: BotState) -> BotState:
     wa_message_id = msg.get("id", "")
     text, msg_type = _extract_text(msg)
 
-    # Map phone_number_id → restaurant
-    phone_number_id = value.get("metadata", {}).get("phone_number_id", "")
-
-    async with AsyncSessionLocal() as db:
-        rest_result = await db.execute(
-            select(Restaurant).where(Restaurant.whatsapp_phone_number_id == phone_number_id)
-        )
-        restaurant = rest_result.scalar_one_or_none()
+    # Map phone_number_id → restaurant (if not already pre-filled from URL)
+    if not state.get("restaurant_id"):
+        phone_number_id = value.get("metadata", {}).get("phone_number_id", "")
+        async with AsyncSessionLocal() as db:
+            rest_result = await db.execute(
+                select(Restaurant).where(Restaurant.whatsapp_phone_number_id == phone_number_id)
+            )
+            restaurant = rest_result.scalar_one_or_none()
+            if restaurant:
+                state["restaurant_id"] = str(restaurant.id)
 
     state["wa_user_id"] = wa_user_id
     state["wa_message_id"] = wa_message_id
     state["message_text"] = text
     state["message_type"] = msg_type
-    if restaurant:
-        state["restaurant_id"] = str(restaurant.id)
     return state
 
 

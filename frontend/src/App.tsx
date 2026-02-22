@@ -9,6 +9,7 @@ import StaffAdmin from "./pages/admin/StaffAdmin";
 import DailyReport from "./pages/admin/DailyReport";
 import BranchAdmin from "./pages/admin/BranchAdmin";
 import SystemAdmin from "./pages/admin/SystemAdmin";
+import client from "./api/client";
 
 function isLoggedIn() {
     return !!localStorage.getItem("hd_token");
@@ -23,9 +24,10 @@ function getRole() {
     }
 }
 
-function Sidebar({ hideSidebar }: { hideSidebar: () => void }) {
+function Sidebar({ hideSidebar, openPasswordModal }: { hideSidebar: () => void, openPasswordModal: () => void }) {
     const navigate = useNavigate();
     const role = getRole();
+    const staff = JSON.parse(localStorage.getItem("hd_staff") || "{}");
 
     function logout() {
         localStorage.clear();
@@ -37,6 +39,11 @@ function Sidebar({ hideSidebar }: { hideSidebar: () => void }) {
             <div className="logo">
                 <div className="logo-dot" />
                 HelloDine
+            </div>
+
+            <div style={{ padding: "0 14px", marginBottom: "20px" }}>
+                <div style={{ fontSize: "0.85rem", fontWeight: 700 }}>{staff.name}</div>
+                <div style={{ fontSize: "0.7rem", color: "var(--text-muted)" }}>{staff.role}</div>
             </div>
 
             <NavLink to="/orders" className={({ isActive }) => `nav-link${isActive ? " active" : ""}`} onClick={hideSidebar}>
@@ -73,6 +80,10 @@ function Sidebar({ hideSidebar }: { hideSidebar: () => void }) {
 
             <div style={{ flex: 1 }} />
 
+            <button className="nav-link" onClick={() => { hideSidebar(); openPasswordModal(); }} style={{ color: "var(--orange)" }}>
+                🔐 Change Password
+            </button>
+
             <button className="nav-link" onClick={logout} style={{ color: "var(--red)" }}>
                 🚪 Logout
             </button>
@@ -80,15 +91,64 @@ function Sidebar({ hideSidebar }: { hideSidebar: () => void }) {
     );
 }
 
+function PasswordModal({ onClose }: { onClose: () => void }) {
+    const [current, setCurrent] = useState("");
+    const [newPass, setNewPass] = useState("");
+    const [loading, setLoading] = useState(false);
+
+    async function handleSubmit(e: React.FormEvent) {
+        e.preventDefault();
+        setLoading(true);
+        try {
+            await client.post("/auth/change-password", {
+                current_password: current,
+                new_password: newPass
+            });
+            alert("Password changed successfully!");
+            onClose();
+        } catch (err: any) {
+            alert(err.response?.data?.detail || "Failed to change password");
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    return (
+        <div className="modal-overlay">
+            <div className="modal" style={{ maxWidth: "400px" }}>
+                <h2>Change Password</h2>
+                <form onSubmit={handleSubmit} style={{ marginTop: "20px" }}>
+                    <div className="input-group">
+                        <label className="input-label">Current Password</label>
+                        <input type="password" required className="input" value={current} onChange={e => setCurrent(e.target.value)} />
+                    </div>
+                    <div className="input-group">
+                        <label className="input-label">New Password</label>
+                        <input type="password" required className="input" value={newPass} onChange={e => setNewPass(e.target.value)} />
+                    </div>
+                    <div style={{ display: "flex", gap: "12px", marginTop: "24px" }}>
+                        <button type="submit" className="btn-primary" style={{ flex: 1 }} disabled={loading}>
+                            {loading ? "Changing..." : "Update Password"}
+                        </button>
+                        <button type="button" className="btn-secondary" onClick={onClose}>Cancel</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
+}
+
 function ProtectedLayout() {
     const [sidebarOpen, setSidebarOpen] = useState(false);
+    const [showPasswordModal, setShowPasswordModal] = useState(false);
+
     if (!isLoggedIn()) return <Navigate to="/login" replace />;
 
     return (
         <div className="app-shell">
             <div className={`sidebar-overlay ${sidebarOpen ? "show" : ""}`} onClick={() => setSidebarOpen(false)} />
             <aside className={`sidebar ${sidebarOpen ? "open" : ""}`}>
-                <Sidebar hideSidebar={() => setSidebarOpen(false)} />
+                <Sidebar hideSidebar={() => setSidebarOpen(false)} openPasswordModal={() => setShowPasswordModal(true)} />
             </aside>
             <main className="main-content">
                 <header className="mobile-header">
@@ -116,6 +176,8 @@ function ProtectedLayout() {
                     } />
                 </Routes>
             </main>
+
+            {showPasswordModal && <PasswordModal onClose={() => setShowPasswordModal(false)} />}
         </div>
     );
 }

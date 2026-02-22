@@ -29,6 +29,10 @@ class StaffOut(BaseModel):
     branch_id: uuid.UUID | None
     is_active: bool
 
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
+
     model_config = {"from_attributes": True}
 
 
@@ -52,3 +56,14 @@ async def login(form: OAuth2PasswordRequestForm = Depends(), db: AsyncSession = 
 @router.get("/me", response_model=StaffOut)
 async def me(staff: StaffUser = Depends(get_current_staff)):
     return staff
+
+
+@router.post("/change-password")
+async def change_password(data: ChangePasswordRequest, db: AsyncSession = Depends(get_db), staff: StaffUser = Depends(get_current_staff)):
+    if not verify_password(data.current_password, staff.password_hash):
+        raise HTTPException(status_code=400, detail="Incorrect current password")
+    
+    from app.services.auth_service import hash_password
+    staff.password_hash = hash_password(data.new_password)
+    await db.commit()
+    return {"ok": True}

@@ -6,6 +6,8 @@ interface Restaurant {
     name: string;
     whatsapp_phone_number_id: string;
     whatsapp_display_number: string;
+    whatsapp_access_token?: string;
+    whatsapp_verify_token?: string;
     max_branches: number;
     is_active: boolean;
     created_at: string;
@@ -16,11 +18,17 @@ export default function SystemAdmin() {
     const [loading, setLoading] = useState(true);
     const [showAdd, setShowAdd] = useState(false);
     const [editTarget, setEditTarget] = useState<Restaurant | null>(null);
+    const [resetTarget, setResetTarget] = useState<Restaurant | null>(null);
+    const [newPass, setNewPass] = useState("");
     const [formData, setFormData] = useState({
         name: "",
         whatsapp_phone_number_id: "",
         whatsapp_display_number: "",
-        max_branches: 1
+        whatsapp_access_token: "",
+        whatsapp_verify_token: "hellodine",
+        max_branches: 1,
+        owner_phone: "",
+        owner_password: ""
     });
 
     useEffect(() => {
@@ -41,12 +49,33 @@ export default function SystemAdmin() {
     const handleCreate = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
-            await client.post("/admin/restaurants", formData);
-            setFormData({ name: "", whatsapp_phone_number_id: "", whatsapp_display_number: "", max_branches: 1 });
+            // 1. Create Restaurant
+            const restRes = await client.post("/admin/restaurants", {
+                name: formData.name,
+                whatsapp_phone_number_id: formData.whatsapp_phone_number_id,
+                whatsapp_display_number: formData.whatsapp_display_number,
+                whatsapp_access_token: formData.whatsapp_access_token,
+                whatsapp_verify_token: formData.whatsapp_verify_token,
+                max_branches: formData.max_branches
+            });
+
+            const restaurantId = restRes.data.id;
+
+            // 2. Create Owner Account (SUPER_ADMIN)
+            await client.post("/admin/staff", {
+                restaurant_id: restaurantId,
+                role: "SUPER_ADMIN",
+                name: `${formData.name} Owner`,
+                phone: formData.owner_phone,
+                password: formData.owner_password
+            });
+
+            setFormData({ name: "", whatsapp_phone_number_id: "", whatsapp_display_number: "", whatsapp_access_token: "", whatsapp_verify_token: "hellodine", max_branches: 1, owner_phone: "", owner_password: "" });
             setShowAdd(false);
             fetchRestaurants();
-        } catch (err) {
-            alert("Failed to create restaurant");
+            alert("Restaurant and Owner Account created successfully!");
+        } catch (err: any) {
+            alert(err.response?.data?.detail || "Failed to create restaurant");
         }
     };
 
@@ -58,7 +87,9 @@ export default function SystemAdmin() {
                 name: formData.name,
                 max_branches: formData.max_branches,
                 whatsapp_phone_number_id: formData.whatsapp_phone_number_id,
-                whatsapp_display_number: formData.whatsapp_display_number
+                whatsapp_display_number: formData.whatsapp_display_number,
+                whatsapp_access_token: formData.whatsapp_access_token,
+                whatsapp_verify_token: formData.whatsapp_verify_token
             });
             setEditTarget(null);
             fetchRestaurants();
@@ -67,12 +98,30 @@ export default function SystemAdmin() {
         }
     };
 
+    const handleResetPassword = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!resetTarget) return;
+        try {
+            await client.post(`/admin/restaurants/${resetTarget.id}/reset-owner-password`, {
+                new_password: newPass
+            });
+            setResetTarget(null);
+            setNewPass("");
+            alert("Owner password reset successfully!");
+        } catch (err) {
+            alert("Failed to reset password");
+        }
+    }
+
     const openEdit = (r: Restaurant) => {
         setEditTarget(r);
         setFormData({
+            ...formData,
             name: r.name,
             whatsapp_phone_number_id: r.whatsapp_phone_number_id,
             whatsapp_display_number: r.whatsapp_display_number,
+            whatsapp_access_token: r.whatsapp_access_token || "",
+            whatsapp_verify_token: r.whatsapp_verify_token || "hellodine",
             max_branches: r.max_branches
         });
     };
@@ -89,6 +138,34 @@ export default function SystemAdmin() {
                 <button className="btn-primary" onClick={() => { setEditTarget(null); setShowAdd(true); }}>+ Onboard Restaurant</button>
             </header>
 
+            {resetTarget && (
+                <div className="modal-overlay">
+                    <div className="modal" style={{ maxWidth: "400px" }}>
+                        <h2>Reset Owner Password</h2>
+                        <p style={{ fontSize: "0.9rem", color: "var(--text-muted)", margin: "12px 0" }}>
+                            Resetting password for <strong>{resetTarget.name}</strong> owner.
+                        </p>
+                        <form onSubmit={handleResetPassword}>
+                            <div className="input-group">
+                                <label className="input-label">New Password</label>
+                                <input
+                                    type="password"
+                                    className="input"
+                                    required
+                                    value={newPass}
+                                    onChange={e => setNewPass(e.target.value)}
+                                    placeholder="Enter new complex password"
+                                />
+                            </div>
+                            <div style={{ display: "flex", gap: "12px", marginTop: "24px" }}>
+                                <button type="submit" className="btn-primary" style={{ flex: 1 }}>Reset Password</button>
+                                <button type="button" className="btn-secondary" onClick={() => setResetTarget(null)}>Cancel</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
             {(showAdd || editTarget) && (
                 <div className="modal-overlay">
                     <div className="modal" style={{ maxWidth: "500px" }}>
@@ -104,6 +181,34 @@ export default function SystemAdmin() {
                                     placeholder="e.g. Pizza Paradise"
                                 />
                             </div>
+
+                            {!editTarget && (
+                                <div style={{ background: "rgba(255,255,255,0.03)", padding: "16px", borderRadius: "8px", marginBottom: "20px", border: "1px solid var(--border)" }}>
+                                    <h3 style={{ fontSize: "0.9rem", marginBottom: "12px", color: "var(--orange)" }}>Initial Owner Account</h3>
+                                    <div className="input-group">
+                                        <label className="input-label">Owner Phone (+91...)</label>
+                                        <input
+                                            className="input"
+                                            required
+                                            value={formData.owner_phone}
+                                            onChange={e => setFormData({ ...formData, owner_phone: e.target.value })}
+                                            placeholder="+91 90000 00000"
+                                        />
+                                    </div>
+                                    <div className="input-group" style={{ marginBottom: 0 }}>
+                                        <label className="input-label">Owner Password</label>
+                                        <input
+                                            type="password"
+                                            className="input"
+                                            required
+                                            value={formData.owner_password}
+                                            onChange={e => setFormData({ ...formData, owner_password: e.target.value })}
+                                            placeholder="Initial password"
+                                        />
+                                    </div>
+                                </div>
+                            )}
+
                             <div className="input-group">
                                 <label className="input-label">WhatsApp Phone Number ID</label>
                                 <input
@@ -125,6 +230,26 @@ export default function SystemAdmin() {
                                 />
                             </div>
                             <div className="input-group">
+                                <label className="input-label">Meta Access Token</label>
+                                <input
+                                    className="input"
+                                    type="password"
+                                    value={formData.whatsapp_access_token}
+                                    onChange={e => setFormData({ ...formData, whatsapp_access_token: e.target.value })}
+                                    placeholder="EAAB..."
+                                />
+                            </div>
+                            <div className="input-group">
+                                <label className="input-label">Webhook Verify Token</label>
+                                <input
+                                    className="input"
+                                    required
+                                    value={formData.whatsapp_verify_token}
+                                    onChange={e => setFormData({ ...formData, whatsapp_verify_token: e.target.value })}
+                                    placeholder="e.g. hellodine"
+                                />
+                            </div>
+                            <div className="input-group">
                                 <label className="input-label">Max Allowed Branches</label>
                                 <input
                                     type="number"
@@ -134,9 +259,6 @@ export default function SystemAdmin() {
                                     value={formData.max_branches}
                                     onChange={e => setFormData({ ...formData, max_branches: parseInt(e.target.value) })}
                                 />
-                                <p style={{ fontSize: "0.75rem", color: "var(--orange)", marginTop: "4px" }}>
-                                    Customers will be charged based on this limit.
-                                </p>
                             </div>
                             <div style={{ display: "flex", gap: "12px", marginTop: "24px" }}>
                                 <button type="submit" className="btn-primary" style={{ flex: 1 }}>{editTarget ? "Save Changes" : "Onboard"}</button>
@@ -155,7 +277,6 @@ export default function SystemAdmin() {
                             <th style={{ padding: "16px", textAlign: "left" }}>WhatsApp ID</th>
                             <th style={{ padding: "16px", textAlign: "center" }}>Branch Limit</th>
                             <th style={{ padding: "16px", textAlign: "center" }}>Status</th>
-                            <th style={{ padding: "16px", textAlign: "right" }}>Joined</th>
                             <th style={{ padding: "16px", textAlign: "center" }}>Actions</th>
                         </tr>
                     </thead>
@@ -166,7 +287,12 @@ export default function SystemAdmin() {
                                     <div style={{ fontWeight: 700 }}>{r.name}</div>
                                     <div style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>{r.whatsapp_display_number}</div>
                                 </td>
-                                <td style={{ padding: "16px", fontFamily: "monospace", fontSize: "0.8rem" }}>{r.whatsapp_phone_number_id}</td>
+                                <td style={{ padding: "16px", fontFamily: "monospace", fontSize: "0.8rem" }}>
+                                    <div>ID: {r.whatsapp_phone_number_id}</div>
+                                    <div style={{ color: "var(--accent)", marginTop: "4px" }}>
+                                        URL: {window.location.origin.replace("5173", "8000")}/api/webhook/{r.id}
+                                    </div>
+                                </td>
                                 <td style={{ padding: "16px", textAlign: "center" }}>
                                     <span style={{
                                         padding: "4px 12px",
@@ -183,13 +309,15 @@ export default function SystemAdmin() {
                                         {r.is_active ? "ACTIVE" : "INACTIVE"}
                                     </span>
                                 </td>
-                                <td style={{ padding: "16px", textAlign: "right", color: "var(--text-muted)", fontSize: "0.85rem" }}>
-                                    {new Date(r.created_at).toLocaleDateString()}
-                                </td>
                                 <td style={{ padding: "16px", textAlign: "center" }}>
-                                    <button className="btn-secondary" style={{ padding: "6px 12px", fontSize: "0.8rem" }} onClick={() => openEdit(r)}>
-                                        ✏️ Edit
-                                    </button>
+                                    <div style={{ display: "flex", gap: "8px", justifyContent: "center" }}>
+                                        <button className="btn-secondary" style={{ padding: "6px 12px", fontSize: "0.8rem" }} onClick={() => openEdit(r)}>
+                                            ✏️ Edit
+                                        </button>
+                                        <button className="btn-secondary" style={{ padding: "6px 12px", fontSize: "0.8rem", border: "1px solid var(--orange)", color: "var(--orange)" }} onClick={() => setResetTarget(r)}>
+                                            🔑 Reset Pass
+                                        </button>
+                                    </div>
                                 </td>
                             </tr>
                         ))}

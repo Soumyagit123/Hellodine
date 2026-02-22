@@ -21,6 +21,8 @@ class RestaurantCreate(BaseModel):
     fssai_license_number: str | None = None
     whatsapp_phone_number_id: str
     whatsapp_display_number: str
+    whatsapp_access_token: str | None = None
+    whatsapp_verify_token: str = "hellodine"
 
 class RestaurantUpdate(BaseModel):
     name: str | None = None
@@ -28,6 +30,11 @@ class RestaurantUpdate(BaseModel):
     is_active: bool | None = None
     whatsapp_phone_number_id: str | None = None
     whatsapp_display_number: str | None = None
+    whatsapp_access_token: str | None = None
+    whatsapp_verify_token: str | None = None
+
+class ResetPasswordRequest(BaseModel):
+    new_password: str
 
 
 class BranchCreate(BaseModel):
@@ -103,6 +110,21 @@ async def update_restaurant(restaurant_id: uuid.UUID, data: RestaurantUpdate, db
     await db.commit()
     await db.refresh(r)
     return r
+
+
+@router.post("/restaurants/{restaurant_id}/reset-owner-password")
+async def reset_owner_password(restaurant_id: uuid.UUID, data: ResetPasswordRequest, db: AsyncSession = Depends(get_db)):
+    """Allow System Admin to reset the password for a restaurant's owner (Super Admin)."""
+    from app.services.auth_service import hash_password
+    # Find the Super Admin for this restaurant
+    result = await db.execute(select(StaffUser).where(StaffUser.restaurant_id == restaurant_id, StaffUser.role == StaffRole.SUPER_ADMIN))
+    owner = result.scalar_one_or_none()
+    if not owner:
+        raise HTTPException(404, "Owner account not found for this restaurant")
+    
+    owner.password_hash = hash_password(data.new_password)
+    await db.commit()
+    return {"ok": True}
 
 
 # ─── Branches ────────────────────────────────────────────────────────────────

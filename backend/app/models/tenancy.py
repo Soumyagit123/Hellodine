@@ -16,6 +16,8 @@ class Restaurant(Base):
     fssai_license_number: Mapped[str | None] = mapped_column(Text, nullable=True)
     whatsapp_phone_number_id: Mapped[str] = mapped_column(Text, unique=True, nullable=False)
     whatsapp_display_number: Mapped[str] = mapped_column(Text, nullable=False)
+    whatsapp_access_token: Mapped[str | None] = mapped_column(Text, nullable=True)
+    whatsapp_verify_token: Mapped[str] = mapped_column(Text, default="hellodine", nullable=False)
     max_branches: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
