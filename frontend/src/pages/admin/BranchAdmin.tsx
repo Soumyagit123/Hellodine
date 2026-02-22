@@ -39,7 +39,7 @@ export default function BranchAdmin() {
 
     const fetchBranches = async () => {
         try {
-            const res = await client.get(`/api/admin/branches?restaurant_id=${restaurantId}`);
+            const res = await client.get(`/admin/branches?restaurant_id=${restaurantId}`);
             setBranches(res.data);
         } catch (err) {
             console.error("Failed to fetch branches", err);
@@ -52,7 +52,7 @@ export default function BranchAdmin() {
         try {
             // We'll need a way to get the current restaurant's max_branches
             // For now, we can get it from the list of restaurants or a specific endpoint
-            const res = await client.get("/api/admin/restaurants");
+            const res = await client.get("/admin/restaurants");
             const mine = res.data.find((r: any) => r.id === restaurantId);
             if (mine) setMaxBranches(mine.max_branches);
         } catch { }
@@ -61,7 +61,7 @@ export default function BranchAdmin() {
     const handleCreate = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
-            await client.post("/api/admin/branches", {
+            await client.post("/admin/branches", {
                 ...formData,
                 restaurant_id: restaurantId
             });

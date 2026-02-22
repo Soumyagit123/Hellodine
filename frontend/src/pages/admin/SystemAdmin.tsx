@@ -28,7 +28,7 @@ export default function SystemAdmin() {
 
     const fetchRestaurants = async () => {
         try {
-            const res = await client.get("/api/admin/restaurants");
+            const res = await client.get("/admin/restaurants");
             setRestaurants(res.data);
         } catch (err) {
             console.error("Failed to fetch restaurants", err);
@@ -40,7 +40,7 @@ export default function SystemAdmin() {
     const handleCreate = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
-            await client.post("/api/admin/restaurants", formData);
+            await client.post("/admin/restaurants", formData);
             setFormData({ name: "", whatsapp_phone_number_id: "", whatsapp_display_number: "", max_branches: 1 });
             setShowAdd(false);
             fetchRestaurants();
