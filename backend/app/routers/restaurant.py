@@ -2,7 +2,7 @@
 import uuid, secrets
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, func
 from pydantic import BaseModel
 from datetime import datetime
 
@@ -75,7 +75,19 @@ async def list_restaurants(db: AsyncSession = Depends(get_db)):
 
 # ─── Branches ────────────────────────────────────────────────────────────────
 @router.post("/branches")
-async def create_branch(data: BranchCreate, db: AsyncSession = Depends(get_db)):
+async def create_branch(data: BranchCreate, db: AsyncSession = Depends(get_db), current_staff: StaffUser = Depends(get_current_staff)):
+    # Check branch limit
+    rest_result = await db.execute(select(Restaurant).where(Restaurant.id == data.restaurant_id))
+    restaurant = rest_result.scalar_one_or_none()
+    if not restaurant:
+        raise HTTPException(404, "Restaurant not found")
+
+    branch_count = await db.execute(select(func.count(Branch.id)).where(Branch.restaurant_id == data.restaurant_id))
+    count = branch_count.scalar_one()
+
+    if count >= restaurant.max_branches:
+        raise HTTPException(400, f"Branch limit ({restaurant.max_branches}) reached for this restaurant. Please contact the provider to upgrade.")
+
     b = Branch(**data.model_dump())
     db.add(b)
     await db.commit()

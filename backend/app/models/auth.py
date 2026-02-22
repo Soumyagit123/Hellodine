@@ -9,6 +9,7 @@ from app.database import Base
 
 
 class StaffRole(str, enum.Enum):
+    SYSTEM_ADMIN = "SYSTEM_ADMIN"
     SUPER_ADMIN = "SUPER_ADMIN"
     BRANCH_ADMIN = "BRANCH_ADMIN"
     KITCHEN = "KITCHEN"

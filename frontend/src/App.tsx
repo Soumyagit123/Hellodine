@@ -7,6 +7,8 @@ import MenuAdmin from "./pages/admin/MenuAdmin";
 import TablesAdmin from "./pages/admin/TablesAdmin";
 import StaffAdmin from "./pages/admin/StaffAdmin";
 import DailyReport from "./pages/admin/DailyReport";
+import BranchAdmin from "./pages/admin/BranchAdmin";
+import SystemAdmin from "./pages/admin/SystemAdmin";
 
 function isLoggedIn() {
     return !!localStorage.getItem("hd_token");
@@ -56,6 +58,16 @@ function Sidebar({ hideSidebar }: { hideSidebar: () => void }) {
                     <NavLink to="/admin/tables" className={({ isActive }) => `nav-link${isActive ? " active" : ""}`} onClick={hideSidebar}>🪑 Tables</NavLink>
                     <NavLink to="/admin/staff" className={({ isActive }) => `nav-link${isActive ? " active" : ""}`} onClick={hideSidebar}>👤 Staff</NavLink>
                     <NavLink to="/admin/report" className={({ isActive }) => `nav-link${isActive ? " active" : ""}`} onClick={hideSidebar}>📊 Daily Report</NavLink>
+                    <NavLink to="/admin/branches" className={({ isActive }) => `nav-link${isActive ? " active" : ""}`} onClick={hideSidebar}>🏘️ Branches</NavLink>
+                </>
+            )}
+
+            {role === "SYSTEM_ADMIN" && (
+                <>
+                    <div style={{ margin: "16px 0 8px", fontSize: "0.72rem", textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--accent)", padding: "0 14px" }}>
+                        Provider
+                    </div>
+                    <NavLink to="/system" className={({ isActive }) => `nav-link${isActive ? " active" : ""}`} onClick={hideSidebar}>🌐 System Dashboard</NavLink>
                 </>
             )}
 
@@ -90,6 +102,8 @@ function ProtectedLayout() {
                     <Route path="/admin/tables" element={<TablesAdmin />} />
                     <Route path="/admin/staff" element={<StaffAdmin />} />
                     <Route path="/admin/report" element={<DailyReport />} />
+                    <Route path="/admin/branches" element={<BranchAdmin />} />
+                    <Route path="/system" element={<SystemAdmin />} />
                     <Route path="*" element={<Navigate to="/orders" replace />} />
                 </Routes>
             </main>
