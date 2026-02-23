@@ -130,6 +130,9 @@ async def reset_owner_password(restaurant_id: uuid.UUID, data: ResetPasswordRequ
 # ─── Branches ────────────────────────────────────────────────────────────────
 @router.post("/branches")
 async def create_branch(data: BranchCreate, db: AsyncSession = Depends(get_db), current_staff: StaffUser = Depends(get_current_staff)):
+    if current_staff.role not in [StaffRole.SUPER_ADMIN, StaffRole.SYSTEM_ADMIN]:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Only owners or system admins can create branches")
+        
     # Check branch limit
     rest_result = await db.execute(select(Restaurant).where(Restaurant.id == data.restaurant_id))
     restaurant = rest_result.scalar_one_or_none()
@@ -150,14 +153,24 @@ async def create_branch(data: BranchCreate, db: AsyncSession = Depends(get_db), 
 
 
 @router.get("/branches")
-async def list_branches(restaurant_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(Branch).where(Branch.restaurant_id == restaurant_id))
+async def list_branches(restaurant_id: uuid.UUID, db: AsyncSession = Depends(get_db), current_staff: StaffUser = Depends(get_current_staff)):
+    if current_staff.role == StaffRole.BRANCH_ADMIN:
+        # A branch admin should only see their own branch in listings
+        result = await db.execute(select(Branch).where(Branch.id == current_staff.branch_id))
+    else:
+        result = await db.execute(select(Branch).where(Branch.restaurant_id == restaurant_id))
     return result.scalars().all()
 
 
 # ─── Tables ──────────────────────────────────────────────────────────────────
 @router.post("/tables")
-async def create_table(data: TableCreate, db: AsyncSession = Depends(get_db)):
+async def create_table(data: TableCreate, db: AsyncSession = Depends(get_db), current_staff: StaffUser = Depends(get_current_staff)):
+    if current_staff.role == StaffRole.BRANCH_ADMIN:
+        if str(data.branch_id) != str(current_staff.branch_id):
+            raise HTTPException(status.HTTP_403_FORBIDDEN, "Branch admins can only create tables for their assigned branch")
+    elif current_staff.role != StaffRole.SUPER_ADMIN:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Insufficient permissions")
+
     t = Table(**data.model_dump())
     db.add(t)
     await db.commit()
@@ -166,7 +179,11 @@ async def create_table(data: TableCreate, db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/tables")
-async def list_tables(branch_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
+async def list_tables(branch_id: uuid.UUID, db: AsyncSession = Depends(get_db), current_staff: StaffUser = Depends(get_current_staff)):
+    if current_staff.role == StaffRole.BRANCH_ADMIN:
+        if str(branch_id) != str(current_staff.branch_id):
+            raise HTTPException(status.HTTP_403_FORBIDDEN, "Access denied to this branch's tables")
+            
     result = await db.execute(select(Table).where(Table.branch_id == branch_id, Table.is_active == True))
     return result.scalars().all()
 
@@ -206,7 +223,18 @@ async def generate_qr(table_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
 
 # ─── Staff ────────────────────────────────────────────────────────────────────
 @router.post("/staff", response_model=StaffOut)
-async def create_staff(data: StaffCreate, db: AsyncSession = Depends(get_db)):
+async def create_staff(data: StaffCreate, db: AsyncSession = Depends(get_db), current_staff: StaffUser = Depends(get_current_staff)):
+    # Permission check
+    if current_staff.role == StaffRole.BRANCH_ADMIN:
+        # Branch admin can only create staff for their own branch
+        if str(data.branch_id) != str(current_staff.branch_id):
+            raise HTTPException(status.HTTP_403_FORBIDDEN, "Branch admins can only manage staff for their assigned branch")
+        # Branch admin cannot create other Branch Admins or Super Admins
+        if data.role in [StaffRole.SUPER_ADMIN, StaffRole.BRANCH_ADMIN]:
+            raise HTTPException(status.HTTP_403_FORBIDDEN, "Branch admins cannot create other admins")
+    elif current_staff.role != StaffRole.SUPER_ADMIN:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Insufficient permissions")
+
     from app.services.auth_service import hash_password
     s = StaffUser(
         restaurant_id=data.restaurant_id,
@@ -223,8 +251,17 @@ async def create_staff(data: StaffCreate, db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/staff", response_model=list[StaffOut])
-async def list_staff(restaurant_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(StaffUser).where(StaffUser.restaurant_id == restaurant_id))
+async def list_staff(restaurant_id: uuid.UUID, branch_id: uuid.UUID | None = None, db: AsyncSession = Depends(get_db), current_staff: StaffUser = Depends(get_current_staff)):
+    # Data isolation
+    query = select(StaffUser).where(StaffUser.restaurant_id == restaurant_id)
+    
+    if current_staff.role == StaffRole.BRANCH_ADMIN:
+        # Force filter by their branch
+        query = query.where(StaffUser.branch_id == current_staff.branch_id)
+    elif branch_id:
+        query = query.where(StaffUser.branch_id == branch_id)
+        
+    result = await db.execute(query)
     return result.scalars().all()
 
 

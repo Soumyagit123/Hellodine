@@ -7,6 +7,7 @@ export default function StaffAdmin() {
     const [staff, setStaff] = useState<any[]>([]);
     const [restaurantId, setRestaurantId] = useState<string>("");
     const [branchId, setBranchId] = useState<string>("");
+    const [userRole, setUserRole] = useState<string>("");
     const [showNew, setShowNew] = useState(false);
     const [form, setForm] = useState({ name: "", phone: "", password: "", role: "KITCHEN" });
     const [loading, setLoading] = useState(false);
@@ -19,6 +20,8 @@ export default function StaffAdmin() {
                 const payload = JSON.parse(atob(token.split(".")[1]));
                 rId = payload.restaurant_id || "";
                 setRestaurantId(rId);
+                const role = payload.role || "";
+                setUserRole(role);
             } catch { }
         }
         const s = JSON.parse(localStorage.getItem("hd_staff") || "{}");
@@ -92,7 +95,12 @@ export default function StaffAdmin() {
                         <div className="input-group">
                             <label className="input-label">Role</label>
                             <select className="select" style={{ width: "100%" }} value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>
-                                {ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
+                                {ROLES.filter(r => {
+                                    if (userRole === "BRANCH_ADMIN") {
+                                        return r === "KITCHEN" || r === "CASHIER";
+                                    }
+                                    return true;
+                                }).map((r) => <option key={r} value={r}>{r}</option>)}
                             </select>
                         </div>
                         <div className="flex gap-2">

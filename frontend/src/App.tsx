@@ -117,7 +117,9 @@ function Sidebar({ hideSidebar, openPasswordModal }: { hideSidebar: () => void, 
                     <NavLink to="/admin/tables" className={({ isActive }) => `nav-link${isActive ? " active" : ""}`} onClick={hideSidebar}>🪑 Tables</NavLink>
                     <NavLink to="/admin/staff" className={({ isActive }) => `nav-link${isActive ? " active" : ""}`} onClick={hideSidebar}>👤 Staff</NavLink>
                     <NavLink to="/admin/report" className={({ isActive }) => `nav-link${isActive ? " active" : ""}`} onClick={hideSidebar}>📊 Daily Report</NavLink>
-                    <NavLink to="/admin/branches" className={({ isActive }) => `nav-link${isActive ? " active" : ""}`} onClick={hideSidebar}>🏘️ Branches</NavLink>
+                    {role === "SUPER_ADMIN" && (
+                        <NavLink to="/admin/branches" className={({ isActive }) => `nav-link${isActive ? " active" : ""}`} onClick={hideSidebar}>🏘️ Branches</NavLink>
+                    )}
                 </>
             )}
 
@@ -219,7 +221,9 @@ function ProtectedLayout() {
                     <Route path="/admin/tables" element={<TablesAdmin />} />
                     <Route path="/admin/staff" element={<StaffAdmin />} />
                     <Route path="/admin/report" element={<DailyReport />} />
-                    <Route path="/admin/branches" element={<BranchAdmin />} />
+                    <Route path="/admin/branches" element={
+                        getRole() === "SUPER_ADMIN" ? <BranchAdmin /> : <Navigate to="/admin/menu" replace />
+                    } />
                     <Route path="/system" element={<SystemAdmin />} />
                     <Route path="*" element={
                         getRole() === "SYSTEM_ADMIN"

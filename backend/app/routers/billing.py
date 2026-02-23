@@ -13,6 +13,8 @@ from app.database import get_db
 from app.models.billing import Bill, Payment, BillStatus, PaymentMethod
 from app.models.orders import Order, OrderStatus
 from app.models.customers import TableSession, SessionStatus
+from app.models.auth import StaffUser, StaffRole
+from app.services.auth_service import get_current_staff
 
 router = APIRouter(prefix="/api/billing", tags=["billing"])
 
@@ -114,10 +116,13 @@ async def get_open_bill(table_id: uuid.UUID, db: AsyncSession = Depends(get_db))
 
 
 @router.get("/report/daily")
-async def daily_report(branch_id: uuid.UUID, date: str, db: AsyncSession = Depends(get_db)):
+async def daily_report(branch_id: uuid.UUID, date: str, db: AsyncSession = Depends(get_db), current_staff: StaffUser = Depends(get_current_staff)):
     """Basic daily sales report for admin."""
-    from datetime import datetime
-    
+    # Data isolation
+    if current_staff.role == StaffRole.BRANCH_ADMIN:
+        if str(branch_id) != str(current_staff.branch_id):
+            raise HTTPException(403, "Access denied to this branch's reports")
+            
     # Parse the incoming "YYYY-MM-DD" string
     target_date = datetime.strptime(date, "%Y-%m-%d").date()
     
@@ -141,3 +146,19 @@ async def daily_report(branch_id: uuid.UUID, date: str, db: AsyncSession = Depen
         "total_cgst": float(row.total_cgst or 0),
         "total_sgst": float(row.total_sgst or 0),
     }
+
+
+@router.get("/history")
+async def billing_history(branch_id: uuid.UUID, db: AsyncSession = Depends(get_db), current_staff: StaffUser = Depends(get_current_staff)):
+    """List paid bills for a branch."""
+    # Data isolation
+    if current_staff.role == StaffRole.BRANCH_ADMIN:
+        if str(branch_id) != str(current_staff.branch_id):
+            raise HTTPException(403, "Access denied to this branch's history")
+            
+    result = await db.execute(
+        select(Bill).where(Bill.branch_id == branch_id, Bill.status == BillStatus.PAID)
+        .order_by(Bill.closed_at.desc())
+        .limit(100)
+    )
+    return result.scalars().all()
