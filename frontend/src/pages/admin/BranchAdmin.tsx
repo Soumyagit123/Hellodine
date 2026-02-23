@@ -74,6 +74,12 @@ export default function BranchAdmin() {
         }
     };
 
+    const selectBranch = (branch: Branch) => {
+        localStorage.setItem("hd_selected_branch", branch.id);
+        localStorage.setItem("hd_selected_branch_name", branch.name);
+        alert(`Now managing: ${branch.name}`);
+    };
+
     if (loading) return <div className="p-8">Loading Branch Manager...</div>;
 
     const limitReached = branches.length >= maxBranches;
@@ -182,8 +188,14 @@ export default function BranchAdmin() {
                             </div>
                         )}
                         <div style={{ borderTop: "1px solid var(--border)", paddingTop: "16px", display: "flex", gap: "12px" }}>
+                            <button
+                                className="btn-primary"
+                                style={{ padding: "8px 16px", fontSize: "0.8rem", flex: 1 }}
+                                onClick={() => selectBranch(b)}
+                            >
+                                ⚡ Manage This Branch
+                            </button>
                             <button className="btn-secondary" style={{ padding: "8px 16px", fontSize: "0.8rem" }}>⚙️ Settings</button>
-                            <button className="btn-secondary" style={{ padding: "8px 16px", fontSize: "0.8rem" }}>📋 View Menu</button>
                         </div>
                     </div>
                 ))}

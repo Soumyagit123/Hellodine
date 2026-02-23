@@ -13,8 +13,12 @@ export default function MenuAdmin() {
 
     useEffect(() => {
         const staff = JSON.parse(localStorage.getItem("hd_staff") || "{}");
+        const selectedBranchId = localStorage.getItem("hd_selected_branch");
+
         if (staff.branch_id) {
             setBranchId(staff.branch_id);
+        } else if (selectedBranchId) {
+            setBranchId(selectedBranchId);
         } else {
             const token = localStorage.getItem("hd_token");
             if (token) {

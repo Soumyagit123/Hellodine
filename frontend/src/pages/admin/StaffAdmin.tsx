@@ -22,8 +22,12 @@ export default function StaffAdmin() {
             } catch { }
         }
         const s = JSON.parse(localStorage.getItem("hd_staff") || "{}");
+        const selectedBranchId = localStorage.getItem("hd_selected_branch");
+
         if (s.branch_id) {
             setBranchId(s.branch_id);
+        } else if (selectedBranchId) {
+            setBranchId(selectedBranchId);
         } else if (rId) {
             api.get(`/admin/branches?restaurant_id=${rId}`).then((r) => {
                 if (r.data.length > 0) setBranchId(r.data[0].id);

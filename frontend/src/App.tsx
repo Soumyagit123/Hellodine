@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { BrowserRouter, Routes, Route, Navigate, NavLink, useNavigate } from "react-router-dom";
 import Login from "./pages/Login";
 import OrdersBoard from "./pages/OrdersBoard";
@@ -24,6 +24,56 @@ function getRole() {
     }
 }
 
+function BranchSelector() {
+    const [branches, setBranches] = useState<any[]>([]);
+    const [selected, setSelected] = useState(localStorage.getItem("hd_selected_branch") || "");
+    const navigate = useNavigate();
+
+    const staff = JSON.parse(localStorage.getItem("hd_staff") || "{}");
+    const restaurantId = staff.restaurant_id;
+
+    useEffect(() => {
+        if (restaurantId) {
+            client.get(`/admin/branches?restaurant_id=${restaurantId}`).then(r => {
+                setBranches(r.data);
+                if (!localStorage.getItem("hd_selected_branch") && r.data.length > 0) {
+                    localStorage.setItem("hd_selected_branch", r.data[0].id);
+                    localStorage.setItem("hd_selected_branch_name", r.data[0].name);
+                    setSelected(r.data[0].id);
+                }
+            });
+        }
+    }, [restaurantId]);
+
+    const handleBranchChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        const id = e.target.value;
+        const b = branches.find(x => x.id === id);
+        if (b) {
+            localStorage.setItem("hd_selected_branch", b.id);
+            localStorage.setItem("hd_selected_branch_name", b.name);
+            setSelected(b.id);
+            // Refresh current page to apply new branch context
+            window.location.reload();
+        }
+    };
+
+    if (branches.length === 0) return null;
+
+    return (
+        <div style={{ padding: "0 14px", marginBottom: "16px" }}>
+            <label style={{ fontSize: "0.65rem", textTransform: "uppercase", color: "var(--text-muted)", display: "block", marginBottom: "4px" }}>Active Branch</label>
+            <select
+                className="select"
+                style={{ width: "100%", fontSize: "0.8rem", padding: "6px" }}
+                value={selected}
+                onChange={handleBranchChange}
+            >
+                {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+            </select>
+        </div>
+    );
+}
+
 function Sidebar({ hideSidebar, openPasswordModal }: { hideSidebar: () => void, openPasswordModal: () => void }) {
     const navigate = useNavigate();
     const role = getRole();
@@ -45,6 +95,8 @@ function Sidebar({ hideSidebar, openPasswordModal }: { hideSidebar: () => void, 
                 <div style={{ fontSize: "0.85rem", fontWeight: 700 }}>{staff.name}</div>
                 <div style={{ fontSize: "0.7rem", color: "var(--text-muted)" }}>{staff.role}</div>
             </div>
+
+            {role === "SUPER_ADMIN" && <BranchSelector />}
 
             <NavLink to="/orders" className={({ isActive }) => `nav-link${isActive ? " active" : ""}`} onClick={hideSidebar}>
                 🍽️ Orders

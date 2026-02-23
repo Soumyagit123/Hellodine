@@ -10,8 +10,12 @@ export default function DailyReport() {
 
     useEffect(() => {
         const s = JSON.parse(localStorage.getItem("hd_staff") || "{}");
+        const selectedBranchId = localStorage.getItem("hd_selected_branch");
+
         if (s.branch_id) {
             setBranchId(s.branch_id);
+        } else if (selectedBranchId) {
+            setBranchId(selectedBranchId);
         } else {
             const token = localStorage.getItem("hd_token");
             if (token) {
