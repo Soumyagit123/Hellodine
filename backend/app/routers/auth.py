@@ -19,6 +19,7 @@ class TokenResponse(BaseModel):
     role: str
     name: str
     restaurant_id: str
+    restaurant_name: str
     branch_id: str | None
 
 
@@ -44,6 +45,10 @@ async def login(form: OAuth2PasswordRequestForm = Depends(), db: AsyncSession = 
     if not staff or not verify_password(form.password, staff.password_hash):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid phone or password")
 
+    from app.models.tenancy import Restaurant
+    res_result = await db.execute(select(Restaurant).where(Restaurant.id == staff.restaurant_id))
+    restaurant = res_result.scalar_one()
+
     token = create_access_token({"sub": str(staff.id), "role": staff.role, "restaurant_id": str(staff.restaurant_id)})
     return TokenResponse(
         access_token=token,
@@ -51,6 +56,7 @@ async def login(form: OAuth2PasswordRequestForm = Depends(), db: AsyncSession = 
         role=staff.role,
         name=staff.name,
         restaurant_id=str(staff.restaurant_id),
+        restaurant_name=restaurant.name,
         branch_id=str(staff.branch_id) if staff.branch_id else None,
     )
 

@@ -86,9 +86,16 @@ function Sidebar({ hideSidebar, openPasswordModal }: { hideSidebar: () => void, 
 
     return (
         <aside className="sidebar">
-            <div className="logo">
-                <div className="logo-dot" />
-                HelloDine
+            <div className="logo" style={{ flexDirection: "column", alignItems: "flex-start", height: "auto", padding: "16px 14px 10px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <div className="logo-dot" />
+                    <span style={{ fontSize: "1.1rem", fontWeight: 800 }}>{staff.restaurant_name || "HelloDine"}</span>
+                </div>
+                {staff.restaurant_name && (
+                    <div style={{ fontSize: "0.65rem", color: "var(--accent)", fontWeight: 600, marginLeft: "20px", marginTop: "-2px" }}>
+                        by HelloDine
+                    </div>
+                )}
             </div>
 
             <div style={{ padding: "0 14px", marginBottom: "20px" }}>
@@ -196,6 +203,13 @@ function ProtectedLayout() {
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [showPasswordModal, setShowPasswordModal] = useState(false);
 
+    const staff = JSON.parse(localStorage.getItem("hd_staff") || "{}");
+    const restaurantName = staff.restaurant_name || "HelloDine";
+
+    useEffect(() => {
+        document.title = `${restaurantName} | HelloDine`;
+    }, [restaurantName]);
+
     if (!isLoggedIn()) return <Navigate to="/login" replace />;
 
     return (
@@ -207,7 +221,9 @@ function ProtectedLayout() {
             <main className="main-content">
                 <header className="mobile-header">
                     <button className="menu-btn" onClick={() => setSidebarOpen(true)}>☰</button>
-                    <div className="logo-text">HelloDine</div>
+                    <div className="logo-text" style={{ fontSize: "1rem" }}>
+                        {JSON.parse(localStorage.getItem("hd_staff") || "{}").restaurant_name || "HelloDine"}
+                    </div>
                 </header>
                 <Routes>
                     <Route path="/" element={
