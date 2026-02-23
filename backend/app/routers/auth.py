@@ -18,6 +18,7 @@ class TokenResponse(BaseModel):
     token_type: str
     role: str
     name: str
+    restaurant_id: str
     branch_id: str | None
 
 
@@ -49,6 +50,7 @@ async def login(form: OAuth2PasswordRequestForm = Depends(), db: AsyncSession = 
         token_type="bearer",
         role=staff.role,
         name=staff.name,
+        restaurant_id=str(staff.restaurant_id),
         branch_id=str(staff.branch_id) if staff.branch_id else None,
     )
 
