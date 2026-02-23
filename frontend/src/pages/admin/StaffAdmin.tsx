@@ -9,8 +9,9 @@ export default function StaffAdmin() {
     const [branchId, setBranchId] = useState<string>("");
     const [userRole, setUserRole] = useState<string>("");
     const [showNew, setShowNew] = useState(false);
-    const [form, setForm] = useState({ name: "", phone: "", password: "", role: "KITCHEN" });
+    const [form, setForm] = useState({ name: "", phone: "", password: "", role: "KITCHEN", branch_id: "" });
     const [loading, setLoading] = useState(false);
+    const [branches, setBranches] = useState<any[]>([]);
 
     useEffect(() => {
         let rId = "";
@@ -29,33 +30,45 @@ export default function StaffAdmin() {
 
         if (s.branch_id) {
             setBranchId(s.branch_id);
+            setForm(f => ({ ...f, branch_id: s.branch_id }));
         } else if (selectedBranchId) {
             setBranchId(selectedBranchId);
-        } else if (rId) {
-            api.get(`/admin/branches?restaurant_id=${rId}`).then((r) => {
-                if (r.data.length > 0) setBranchId(r.data[0].id);
+            setForm(f => ({ ...f, branch_id: selectedBranchId }));
+        }
+
+        if (rId || s.restaurant_id) {
+            const rid = rId || s.restaurant_id;
+            api.get(`/admin/branches?restaurant_id=${rid}`).then((r) => {
+                setBranches(r.data);
+                if (!branchId && !selectedBranchId && r.data.length > 0) {
+                    setBranchId(r.data[0].id);
+                    setForm(f => ({ ...f, branch_id: r.data[0].id }));
+                }
             });
         }
     }, []);
 
     useEffect(() => {
-        if (!restaurantId) return;
-        api.get(`/admin/staff?restaurant_id=${restaurantId}`).then((r) => setStaff(r.data));
-    }, [restaurantId]);
+        if (!restaurantId || !branchId) return;
+        // Fetch staff for the selected branch
+        api.get(`/admin/staff?restaurant_id=${restaurantId}&branch_id=${branchId}`).then((r) => setStaff(r.data));
+    }, [restaurantId, branchId]);
 
     async function createStaff() {
+        if (!form.branch_id) { alert("Please select a branch"); return; }
         setLoading(true);
         try {
-            await api.post("/admin/staff", { ...form, restaurant_id: restaurantId, branch_id: branchId || null });
-            setShowNew(false); setForm({ name: "", phone: "", password: "", role: "KITCHEN" });
-            const r = await api.get(`/admin/staff?restaurant_id=${restaurantId}`);
+            await api.post("/admin/staff", { ...form, restaurant_id: restaurantId });
+            setShowNew(false);
+            setForm({ name: "", phone: "", password: "", role: "KITCHEN", branch_id: branchId });
+            const r = await api.get(`/admin/staff?restaurant_id=${restaurantId}&branch_id=${branchId}`);
             setStaff(r.data);
         } finally { setLoading(false); }
     }
 
     async function deactivate(id: string) {
         await api.patch(`/admin/staff/${id}/deactivate`);
-        const r = await api.get(`/admin/staff?restaurant_id=${restaurantId}`);
+        const r = await api.get(`/admin/staff?restaurant_id=${restaurantId}&branch_id=${branchId}`);
         setStaff(r.data);
     }
 
@@ -70,11 +83,12 @@ export default function StaffAdmin() {
 
             <div className="card table-wrap">
                 <table>
-                    <thead><tr><th>Name</th><th>Phone</th><th>Role</th><th>Status</th><th></th></tr></thead>
+                    <thead><tr><th>Name</th><th>Branch</th><th>Phone</th><th>Role</th><th>Status</th><th></th></tr></thead>
                     <tbody>
                         {staff.map((s) => (
                             <tr key={s.id}>
                                 <td style={{ fontWeight: 600 }}>{s.name}</td>
+                                <td className="text-sm">{s.branch_name || "N/A"}</td>
                                 <td className="text-muted">{s.phone}</td>
                                 <td><span className="badge" style={{ background: `${roleColor[s.role]}22`, color: roleColor[s.role] }}>{s.role}</span></td>
                                 <td><span style={{ color: s.is_active ? "var(--green)" : "var(--red)" }}>{s.is_active ? "Active" : "Inactive"}</span></td>
@@ -103,6 +117,15 @@ export default function StaffAdmin() {
                                 }).map((r) => <option key={r} value={r}>{r}</option>)}
                             </select>
                         </div>
+                        {userRole === "SUPER_ADMIN" && (
+                            <div className="input-group">
+                                <label className="input-label">Assign to Branch</label>
+                                <select className="select" style={{ width: "100%" }} value={form.branch_id} onChange={(e) => setForm({ ...form, branch_id: e.target.value })}>
+                                    <option value="">Select Branch</option>
+                                    {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                                </select>
+                            </div>
+                        )}
                         <div className="flex gap-2">
                             <button className="btn btn-outline" onClick={() => setShowNew(false)}>Cancel</button>
                             <button className="btn btn-primary" onClick={createStaff} disabled={loading}>{loading ? "Creating…" : "Create Staff"}</button>

@@ -29,6 +29,7 @@ class StaffOut(BaseModel):
     phone: str
     role: StaffRole
     branch_id: uuid.UUID | None
+    branch_name: str | None = None
     is_active: bool
 
 class ChangePasswordRequest(BaseModel):
@@ -62,7 +63,12 @@ async def login(form: OAuth2PasswordRequestForm = Depends(), db: AsyncSession = 
 
 
 @router.get("/me", response_model=StaffOut)
-async def me(staff: StaffUser = Depends(get_current_staff)):
+async def me(staff: StaffUser = Depends(get_current_staff), db: AsyncSession = Depends(get_db)):
+    if staff.branch_id:
+        from app.models.tenancy import Branch
+        b = await db.get(Branch, staff.branch_id)
+        if b:
+            setattr(staff, "branch_name", b.name)
     return staff
 
 

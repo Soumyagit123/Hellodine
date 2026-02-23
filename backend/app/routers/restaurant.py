@@ -253,7 +253,8 @@ async def create_staff(data: StaffCreate, db: AsyncSession = Depends(get_db), cu
 @router.get("/staff", response_model=list[StaffOut])
 async def list_staff(restaurant_id: uuid.UUID, branch_id: uuid.UUID | None = None, db: AsyncSession = Depends(get_db), current_staff: StaffUser = Depends(get_current_staff)):
     # Data isolation
-    query = select(StaffUser).where(StaffUser.restaurant_id == restaurant_id)
+    from app.models.tenancy import Branch
+    query = select(StaffUser, Branch.name.label("branch_name")).outerjoin(Branch, StaffUser.branch_id == Branch.id).where(StaffUser.restaurant_id == restaurant_id)
     
     if current_staff.role == StaffRole.BRANCH_ADMIN:
         # Force filter by their branch
@@ -262,7 +263,14 @@ async def list_staff(restaurant_id: uuid.UUID, branch_id: uuid.UUID | None = Non
         query = query.where(StaffUser.branch_id == branch_id)
         
     result = await db.execute(query)
-    return result.scalars().all()
+    rows = result.all()
+    
+    staff_list = []
+    for staff, branch_name in rows:
+        setattr(staff, "branch_name", branch_name)
+        staff_list.append(staff)
+        
+    return staff_list
 
 
 @router.patch("/staff/{staff_id}/deactivate")
