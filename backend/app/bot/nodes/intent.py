@@ -72,12 +72,22 @@ async def intent_router(state: BotState) -> BotState:
         state["intent"] = "CART_VIEW"
         state["entities"] = {}
         return state
-    if any(w in lower for w in ["menu", "list", "show", "browse", "सूची"]):
+    if any(w in lower for w in ["menu", "list", "show", "browse", "सूची", "show_menu"]):
         state["intent"] = "BROWSE"
         state["entities"] = {}
         return state
 
-    # Interactive Replies (cat_ or item_)
+    # Interactive Replies (cat_, item_, or button IDs)
+    if lower == "do_confirm":
+        state["intent"] = "CONFIRM_PREVIEW"
+        return state
+    if lower == "confirm_order":
+        state["intent"] = "CONFIRM"
+        return state
+    if lower == "view_cart" or lower == "edit_cart":
+        state["intent"] = "CART_VIEW"
+        return state
+    
     if lower.startswith("cat_"):
         state["intent"] = "BROWSE"
         state["entities"] = {"category_id": lower.replace("cat_", "")}
