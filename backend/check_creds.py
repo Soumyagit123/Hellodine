@@ -14,6 +14,8 @@ async def check_creds():
             print(f"Phone ID: {r.whatsapp_phone_number_id}")
             print(f"Display Num: {r.whatsapp_display_number}")
             print(f"Token (First 20): {r.whatsapp_access_token[:20] if r.whatsapp_access_token else 'NONE'}")
+            print(f"App Secret: {r.whatsapp_app_secret}")
+            print(f"App ID: {r.whatsapp_app_id}")
         else:
             print("Restaurant not found")
 
