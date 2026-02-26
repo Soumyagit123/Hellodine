@@ -6,6 +6,7 @@ from app.bot.nodes.intent import detect_language, intent_router
 from app.bot.nodes.menu_and_format import menu_retrieval, response_formatter
 from app.bot.nodes.cart_and_order import cart_executor, checkout_guard_node, kitchen_dispatch
 from app.bot.nodes.billing import bill_generator
+from app.bot.nodes.chat import restaurant_chat
 
 
 def route_after_intent(state: BotState) -> str:
@@ -26,6 +27,8 @@ def route_after_intent(state: BotState) -> str:
         return "kitchen_dispatch"
     if intent == "BILL":
         return "bill_generator"
+    if intent == "OTHER":
+        return "restaurant_chat"
     return "response_formatter"
 
 
@@ -48,6 +51,7 @@ def build_graph() -> StateGraph:
     g.add_node("checkout_guard", checkout_guard_node)
     g.add_node("kitchen_dispatch", kitchen_dispatch)
     g.add_node("bill_generator", bill_generator)
+    g.add_node("restaurant_chat", restaurant_chat)
     g.add_node("response_formatter", response_formatter)
 
     # Entry point
@@ -66,10 +70,11 @@ def build_graph() -> StateGraph:
         "checkout_guard": "checkout_guard",
         "kitchen_dispatch": "kitchen_dispatch",
         "bill_generator": "bill_generator",
+        "restaurant_chat": "restaurant_chat",
         "response_formatter": "response_formatter",
     })
     # All action nodes → formatter → END
-    for node in ("menu_retrieval", "cart_executor", "checkout_guard", "kitchen_dispatch", "bill_generator"):
+    for node in ("menu_retrieval", "cart_executor", "checkout_guard", "kitchen_dispatch", "bill_generator", "restaurant_chat"):
         g.add_edge(node, "response_formatter")
     g.add_edge("response_formatter", END)
 

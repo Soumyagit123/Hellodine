@@ -56,28 +56,41 @@ async def cart_executor(state: BotState) -> BotState:
             quantity = 1
         notes = entities.get("notes")
 
-        if not item_name:
+        if not item_name and not entities.get("item_id"):
             state["final_response"] = {"type": "text", "body": "What would you like to add? Say e.g. *add 2 paneer tikka*."}
             return state
 
         async with AsyncSessionLocal() as db:
-            # Fuzzy match item by name in branch
-            items_result = await db.execute(
-                select(MenuItem).where(
-                    MenuItem.branch_id == uuid.UUID(branch_id),
-                    MenuItem.is_available == True,
+            menu_item = None
+            item_id = entities.get("item_id")
+            
+            if item_id:
+                try:
+                    res = await db.execute(select(MenuItem).where(MenuItem.id == uuid.UUID(item_id)))
+                    menu_item = res.scalar_one_or_none()
+                except Exception:
+                    pass
+            
+            if not menu_item and item_name:
+                # Fuzzy match item by name in branch
+                items_result = await db.execute(
+                    select(MenuItem).where(
+                        MenuItem.branch_id == uuid.UUID(branch_id),
+                        MenuItem.is_available == True,
+                    )
                 )
-            )
-            all_items = items_result.scalars().all()
-            matched = [i for i in all_items if item_name.lower() in i.name.lower()]
-            if not matched:
+                all_items = items_result.scalars().all()
+                matched = [i for i in all_items if item_name.lower() in i.name.lower()]
+                if matched:
+                    menu_item = matched[0]
+
+            if not menu_item:
                 state["final_response"] = {
                     "type": "text",
-                    "body": f"❌ Couldn't find *{item_name}* on the menu. Say *show menu* to browse.",
+                    "body": f"❌ Couldn't find that item. Say *show menu* to browse.",
                 }
                 return state
 
-            menu_item = matched[0]
             try:
                 cart = await add_item_to_cart(
                     session_id=uuid.UUID(session_id),

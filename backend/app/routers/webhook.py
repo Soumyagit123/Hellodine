@@ -89,6 +89,11 @@ async def receive_webhook(restaurant_id: uuid.UUID, request: Request):
 
         # Run LangGraph bot
         try:
+            val = payload.get("entry", [{}])[0].get("changes", [{}])[0].get("value", {})
+            if not val.get("messages"):
+                logger.info("Skip webhook: no messages (likely a status update)")
+                return {"status": "ignored", "reason": "no_messages"}
+
             initial_state = {
                 "raw_message": payload,
                 "restaurant_id": str(restaurant_id)

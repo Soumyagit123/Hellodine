@@ -21,7 +21,68 @@ async def menu_retrieval(state: BotState) -> BotState:
         return state
 
     async with AsyncSessionLocal() as db:
-        # If a specific item hint, search items directly
+        # 1. Show items for a specific category
+        cat_id = entities.get("category_id")
+        if cat_id:
+            try:
+                items_result = await db.execute(
+                    select(MenuItem).where(
+                        MenuItem.category_id == uuid.UUID(cat_id),
+                        MenuItem.is_available == True
+                    )
+                )
+                items = items_result.scalars().all()
+                if not items:
+                    state["final_response"] = {"type": "text", "body": "No items found in this category. 📋"}
+                    return state
+
+                rows = []
+                for item in items[:10]:
+                    veg = VEG_EMOJI["veg"] if item.is_veg else VEG_EMOJI["nonveg"]
+                    rows.append({
+                        "id": f"item_{item.id}",
+                        "title": f"{veg} {item.name[:24]}",
+                        "description": f"₹{item.base_price:.0f}",
+                    })
+                state["final_response"] = {
+                    "type": "list",
+                    "body": "Select an item to add to your cart: 👇",
+                    "button_label": "View Items",
+                    "sections": [{"title": "Category Items", "rows": rows}],
+                }
+                return state
+            except (ValueError, Exception) as e:
+                print(f"Error fetching category items: {e}")
+
+        # 2. Veg / Non-Veg search filter
+        is_veg_filter = entities.get("is_veg")
+        if is_veg_filter is not None:
+            items_result = await db.execute(
+                select(MenuItem).where(
+                    MenuItem.branch_id == uuid.UUID(branch_id),
+                    MenuItem.is_veg == is_veg_filter,
+                    MenuItem.is_available == True
+                )
+            )
+            items = items_result.scalars().all()
+            if not items:
+                state["final_response"] = {"type": "text", "body": f"Sorry, couldn't find any {'veg' if is_veg_filter else 'non-veg'} items content. 📋"}
+                return state
+
+            rows = []
+            for item in items[:10]:
+                veg = VEG_EMOJI["veg"] if item.is_veg else VEG_EMOJI["nonveg"]
+                rows.append({"id": f"item_{item.id}", "title": f"{veg} {item.name[:24]}", "description": f"₹{item.base_price:.0f}"})
+            
+            state["final_response"] = {
+                "type": "list",
+                "body": f"Here are our {'Veg' if is_veg_filter else 'Non-Veg'} items: 👇",
+                "button_label": "View Items",
+                "sections": [{"title": "Filter Results", "rows": rows}],
+            }
+            return state
+
+        # 3. Fuzzy search for item hint
         if item_name_hint:
             items_result = await db.execute(
                 select(MenuItem).where(
@@ -54,7 +115,7 @@ async def menu_retrieval(state: BotState) -> BotState:
                 "sections": [{"title": "Menu Items", "rows": rows}],
             }
         else:
-            # Show categories
+            # 4. Default: Show categories
             cats_result = await db.execute(
                 select(MenuCategory).where(
                     MenuCategory.branch_id == uuid.UUID(branch_id),

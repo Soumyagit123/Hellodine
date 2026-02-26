@@ -77,6 +77,26 @@ async def intent_router(state: BotState) -> BotState:
         state["entities"] = {}
         return state
 
+    # Interactive Replies (cat_ or item_)
+    if lower.startswith("cat_"):
+        state["intent"] = "BROWSE"
+        state["entities"] = {"category_id": lower.replace("cat_", "")}
+        return state
+    if lower.startswith("item_"):
+        state["intent"] = "ADD_ITEM"
+        state["entities"] = {"item_id": lower.replace("item_", ""), "quantity": 1}
+        return state
+
+    # Veg / Non-Veg Filtering
+    if any(w in lower for w in ["veg", "शाकाहारी", "vegetarian"]):
+        state["intent"] = "BROWSE"
+        state["entities"] = {"is_veg": True}
+        return state
+    if any(w in lower for w in ["non-veg", "मांसाहारी", "non veg", "chicken", "meat"]):
+        state["intent"] = "BROWSE"
+        state["entities"] = {"is_veg": False}
+        return state
+
     # LLM classification
     try:
         prompt = INTENT_PROMPT.format(message=text)
