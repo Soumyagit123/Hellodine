@@ -36,7 +36,8 @@ async def cart_executor(state: BotState) -> BotState:
             lines = []
             for ci in items:
                 item_r = await db.execute(select(MenuItem).where(MenuItem.id == ci.menu_item_id))
-                mi = item_r.scalar_one()
+                mi = item_r.scalar_one_or_none()
+                if not mi: continue
                 lines.append(f"• {mi.name} ×{ci.quantity} — ₹{ci.line_total:.0f}" + (f"\n  📝 {ci.notes}" if ci.notes else ""))
 
             cart_text = "\n".join(lines)
@@ -49,7 +50,10 @@ async def cart_executor(state: BotState) -> BotState:
     # ── ADD_ITEM ─────────────────────────────────────────────────
     if intent == "ADD_ITEM":
         item_name = entities.get("item_name", "")
-        quantity = int(entities.get("quantity") or 1)
+        try:
+            quantity = int(entities.get("quantity") or 1)
+        except (ValueError, TypeError):
+            quantity = 1
         notes = entities.get("notes")
 
         if not item_name:
@@ -149,7 +153,8 @@ async def checkout_guard_node(state: BotState) -> BotState:
         lines = []
         for ci in items:
             item_r = await db.execute(select(MenuItem).where(MenuItem.id == ci.menu_item_id))
-            mi = item_r.scalar_one()
+            mi = item_r.scalar_one_or_none()
+            if not mi: continue
             lines.append(f"• {mi.name} ×{ci.quantity} — ₹{ci.line_total:.0f}")
 
         summary = "\n".join(lines)
@@ -183,14 +188,21 @@ async def kitchen_dispatch(state: BotState) -> BotState:
             order = await create_order_from_cart(uuid.UUID(session_id), db)
             # Broadcast realtime to kitchen PWA
             table_result = await db.execute(select(Table).where(Table.id == order.table_id))
-            table = table_result.scalar_one()
-            await manager.broadcast_to_branch(str(order.branch_id), {
-                "event": "NEW_ORDER",
-                "order_id": str(order.id),
-                "order_number": order.order_number,
-                "table_number": table.table_number,
-                "total": str(order.total),
-            })
+            table = table_result.scalar_one_or_none()
+            if not table:
+                raise CheckoutError("Table associated with order not found")
+
+            # Wrap broadcast in try-except to prevent order failure on WS error
+            try:
+                await manager.broadcast_to_branch(str(order.branch_id), {
+                    "event": "NEW_ORDER",
+                    "order_id": str(order.id),
+                    "order_number": order.order_number,
+                    "table_number": table.table_number,
+                    "total": str(order.total),
+                })
+            except Exception as ws_err:
+                print(f"WARNING: Kitchen broadcast failed: {ws_err}")
             state["final_response"] = {
                 "type": "text",
                 "body": (

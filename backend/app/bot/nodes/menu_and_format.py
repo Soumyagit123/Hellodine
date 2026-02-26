@@ -16,6 +16,10 @@ async def menu_retrieval(state: BotState) -> BotState:
     entities = state.get("entities", {})
     item_name_hint = (entities.get("item_name") or "").lower()
 
+    if not branch_id:
+        state["error"] = "no_branch_id"
+        return state
+
     async with AsyncSessionLocal() as db:
         # If a specific item hint, search items directly
         if item_name_hint:
@@ -29,6 +33,10 @@ async def menu_retrieval(state: BotState) -> BotState:
             matched = [i for i in all_items if item_name_hint in i.name.lower()]
             if not matched:
                 matched = all_items[:10]  # fallback: show first 10
+
+            if not matched:
+                state["final_response"] = {"type": "text", "body": "Sorry, no items are available at the moment. 📋"}
+                return state
 
             rows = []
             for item in matched[:10]:
@@ -54,6 +62,10 @@ async def menu_retrieval(state: BotState) -> BotState:
                 ).order_by(MenuCategory.sort_order)
             )
             cats = cats_result.scalars().all()
+            if not cats:
+                state["final_response"] = {"type": "text", "body": "The menu is currently being updated. Please check back in a few minutes! 📋"}
+                return state
+
             rows = [{"id": f"cat_{c.id}", "title": c.name, "description": f"~{c.estimated_prep_minutes} min" if c.estimated_prep_minutes else ""} for c in cats[:10]]
             state["final_response"] = {
                 "type": "list",

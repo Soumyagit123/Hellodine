@@ -40,8 +40,10 @@ async def checkout_guard(session_id: uuid.UUID, db: AsyncSession) -> tuple[Cart,
     for ci in items:
         item_res = await db.execute(select(MenuItem).where(MenuItem.id == ci.menu_item_id))
         menu_item = item_res.scalar_one_or_none()
-        if not menu_item or not menu_item.is_available:
-            raise CheckoutError(f"Item {ci.menu_item_id} is no longer available")
+        if not menu_item:
+            raise CheckoutError(f"Menu item {ci.menu_item_id} no longer exists")
+        if not menu_item.is_available:
+            raise CheckoutError(f"Item '{menu_item.name}' is no longer available")
 
     # 4. Idempotency: reject if same hash was used within last 30 seconds
     cart_hash = compute_cart_hash(session_id, items)
@@ -66,7 +68,9 @@ async def create_order_from_cart(
     cart, items, cart_hash = await checkout_guard(session_id, db)
 
     sess_result = await db.execute(select(TableSession).where(TableSession.id == session_id))
-    session = sess_result.scalar_one()
+    session = sess_result.scalar_one_or_none()
+    if not session:
+        raise CheckoutError("Table session lost — please scan QR again")
 
     # Generate order number
     import time
@@ -100,8 +104,9 @@ async def create_order_from_cart(
         )
         # Snapshot HSN code
         item_res = await db.execute(select(MenuItem).where(MenuItem.id == ci.menu_item_id))
-        menu_item = item_res.scalar_one()
-        oi.hsn_code_snapshot = menu_item.hsn_code
+        menu_item = item_res.scalar_one_or_none()
+        if menu_item:
+            oi.hsn_code_snapshot = menu_item.hsn_code
         db.add(oi)
         await db.flush()
 

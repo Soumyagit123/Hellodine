@@ -68,7 +68,7 @@ async def resolve_session(state: BotState) -> BotState:
         return state
 
     # ── QR scan ──────────────────────────────────────────────────
-    if "HELLODINE_START" in text:
+    if "HELLODINE_START" in text.upper():
         lines = text.strip().splitlines()
         params = {}
         for line in lines[1:]:
@@ -90,6 +90,7 @@ async def resolve_session(state: BotState) -> BotState:
             )
             token = tok_result.scalar_one_or_none()
             if not token:
+                print(f"ERROR: Invalid QR Token attempted: {token_val}")
                 state["error"] = "invalid_token"
                 return state
 
@@ -140,8 +141,13 @@ async def resolve_session(state: BotState) -> BotState:
 
             state["session_id"] = str(session.id)
             state["customer_id"] = str(customer.id)
-            state["branch_id"] = str(branch.id)
-            state["table_id"] = str(table.id)
+            try:
+                state["branch_id"] = str(branch.id)
+                state["table_id"] = str(table.id)
+            except Exception as e:
+                print(f"ERROR in QR link mapping: {e}")
+                state["error"] = "mapping_error"
+                return state
             state["intent"] = "QR_SCAN"
         return state
 

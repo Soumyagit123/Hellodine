@@ -44,7 +44,10 @@ async def recalculate_cart(cart: Cart, db: AsyncSession):
     for ci in items:
         # Get GST percent from menu_item
         item_result = await db.execute(select(MenuItem).where(MenuItem.id == ci.menu_item_id))
-        menu_item = item_result.scalar_one()
+        menu_item = item_result.scalar_one_or_none()
+        if not menu_item:
+            print(f"WARNING: MenuItem {ci.menu_item_id} not found for cart item {ci.id}")
+            continue
         gst_rate = Decimal(str(menu_item.gst_percent)) / 100
 
         modifier_total = sum(Decimal(str(m.price_delta_snapshot)) for m in ci.modifiers)
@@ -126,7 +129,9 @@ async def remove_cart_item(cart_item_id: uuid.UUID, db: AsyncSession) -> Cart:
     if not ci:
         raise ValueError("Cart item not found")
     cart_result = await db.execute(select(Cart).where(Cart.id == ci.cart_id))
-    cart = cart_result.scalar_one()
+    cart = cart_result.scalar_one_or_none()
+    if not cart:
+        raise ValueError("Cart not found for item")
     await db.delete(ci)
     await db.flush()
     await recalculate_cart(cart, db)

@@ -68,8 +68,12 @@ async def intent_router(state: BotState) -> BotState:
         state["intent"] = "BILL"
         state["entities"] = {}
         return state
-    if any(w in lower for w in ["cart", "my order", "show cart", "what i ordered"]):
+    if any(w in lower for w in ["cart", "my order", "show cart", "what i ordered", "टोकरी"]):
         state["intent"] = "CART_VIEW"
+        state["entities"] = {}
+        return state
+    if any(w in lower for w in ["menu", "list", "show", "browse", "सूची"]):
+        state["intent"] = "BROWSE"
         state["entities"] = {}
         return state
 
