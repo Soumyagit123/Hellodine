@@ -11,12 +11,16 @@ async def check_secrets():
         r = result.scalar_one_or_none()
         if r:
             print(f"Restaurant: {r.name}")
+            print(f"  Phone Number ID: {r.whatsapp_phone_number_id}")
             print(f"  App ID: {r.whatsapp_app_id}")
-            print(f"  App Secret: {'****' if r.whatsapp_app_secret else 'MISSING'}")
-            print(f"  Secret value length: {len(r.whatsapp_app_secret) if r.whatsapp_app_secret else 0}")
-            # Compare with .env value (I know it but I want to be sure what's in DB)
+            print(f"  Access Token: {r.whatsapp_access_token[:10]}...{r.whatsapp_access_token[-10:] if r.whatsapp_access_token else ''}")
+            print(f"  Token has whitespace? {r.whatsapp_access_token.strip() != r.whatsapp_access_token if r.whatsapp_access_token else False}")
+            print(f"  Token length: {len(r.whatsapp_access_token) if r.whatsapp_access_token else 0}")
+            
             from app.config import settings
-            print(f"  Matches .env secret? {r.whatsapp_app_secret == settings.WA_APP_SECRET}")
+            print(f"  Matches .env Phone ID? {r.whatsapp_phone_number_id == settings.WA_PHONE_NUMBER_ID}")
+            print(f"  Matches .env Secret? {r.whatsapp_app_secret == settings.WA_APP_SECRET}")
+            print(f"  Matches .env Token? {r.whatsapp_access_token == settings.WA_ACCESS_TOKEN}")
 
 if __name__ == "__main__":
     asyncio.run(check_secrets())
