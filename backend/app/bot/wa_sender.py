@@ -56,3 +56,21 @@ async def send_interactive_list(to: str, body: str, button_label: str, sections:
     }
     async with httpx.AsyncClient() as client:
         await client.post(get_whatsapp_url(phone_number_id), json=payload, headers=get_headers(access_token))
+
+
+async def send_template(to: str, template_name: str, language_code: str, phone_number_id: str, access_token: str):
+    """Send a WhatsApp template message."""
+    payload = {
+        "messaging_product": "whatsapp",
+        "to": to,
+        "type": "template",
+        "template": {
+            "name": template_name,
+            "language": {"code": language_code}
+        }
+    }
+    async with httpx.AsyncClient() as client:
+        url = get_whatsapp_url(phone_number_id)
+        headers = get_headers(access_token)
+        resp = await client.post(url, json=payload, headers=headers)
+        return resp.json()

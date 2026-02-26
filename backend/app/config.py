@@ -22,7 +22,9 @@ class Settings(BaseSettings):
     WA_PHONE_NUMBER_ID: str = ""
     WA_ACCESS_TOKEN: str = ""
     WA_WEBHOOK_VERIFY_TOKEN: str = "hellodine_verify_token_123"
-    WA_API_URL: str = "https://graph.facebook.com/v20.0"
+    WA_APP_ID: str = ""
+    WA_APP_SECRET: str = ""
+    WA_API_URL: str = "https://graph.facebook.com/v22.0"
 
     # Gemini
     GEMINI_API_KEY: str = ""

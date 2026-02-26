@@ -23,6 +23,8 @@ class RestaurantCreate(BaseModel):
     whatsapp_display_number: str
     whatsapp_access_token: str | None = None
     whatsapp_verify_token: str = "hellodine"
+    whatsapp_app_secret: str | None = None
+    whatsapp_app_id: str | None = None
 
 class RestaurantUpdate(BaseModel):
     name: str | None = None
@@ -32,6 +34,8 @@ class RestaurantUpdate(BaseModel):
     whatsapp_display_number: str | None = None
     whatsapp_access_token: str | None = None
     whatsapp_verify_token: str | None = None
+    whatsapp_app_secret: str | None = None
+    whatsapp_app_id: str | None = None
 
 class ResetPasswordRequest(BaseModel):
     new_password: str
@@ -209,6 +213,8 @@ async def generate_qr(table_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
     table = table_result.scalar_one()
     branch_result = await db.execute(select(Branch).where(Branch.id == table.branch_id))
     branch = branch_result.scalar_one()
+    rest_result = await db.execute(select(Restaurant).where(Restaurant.id == branch.restaurant_id))
+    restaurant = rest_result.scalar_one()
 
     wa_message = (
         f"HELLODINE_START\n"
@@ -216,7 +222,7 @@ async def generate_qr(table_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
         f"table={table.table_number}\n"
         f"token={token_str}"
     )
-    wa_link = f"https://wa.me/?text={wa_message.replace(chr(10), '%0A')}"
+    wa_link = f"https://wa.me/{restaurant.whatsapp_display_number}?text={wa_message.replace(chr(10), '%0A')}"
 
     return {"token": token_str, "wa_link": wa_link, "table_number": table.table_number}
 

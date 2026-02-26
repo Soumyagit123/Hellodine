@@ -9,9 +9,28 @@ from app.bot.wa_sender import send_text, send_interactive_buttons, send_interact
 from app.models.tenancy import Restaurant
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
+import hmac
+import hashlib
 import uuid
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/webhook", tags=["webhook"])
+
+
+def verify_signature(payload: bytes, signature: str, app_secret: str) -> bool:
+    """Verify Meta's X-Hub-Signature-256."""
+    if not signature or not signature.startswith("sha256="):
+        return False
+    
+    expected = hmac.new(
+        app_secret.encode(),
+        payload,
+        hashlib.sha256
+    ).hexdigest()
+    
+    return hmac.compare_digest(f"sha256={expected}", signature)
 
 
 @router.get("/{restaurant_id}")
@@ -28,8 +47,9 @@ async def verify_webhook(restaurant_id: uuid.UUID, request: Request):
     token = params.get("hub.verify_token")
     challenge = params.get("hub.challenge")
     
-    # Use restaurant-specific verify token
-    if mode == "subscribe" and token == restaurant.whatsapp_verify_token:
+    # Use restaurant-specific verify token, fallback to global settings
+    verify_token = restaurant.whatsapp_verify_token or settings.WA_WEBHOOK_VERIFY_TOKEN
+    if mode == "subscribe" and token == verify_token:
         return Response(content=challenge, media_type="text/plain")
     
     raise HTTPException(403, "Verification failed")
@@ -38,7 +58,13 @@ async def verify_webhook(restaurant_id: uuid.UUID, request: Request):
 @router.post("/{restaurant_id}")
 async def receive_webhook(restaurant_id: uuid.UUID, request: Request):
     """Inbound WhatsApp messages per restaurant → LangGraph bot."""
-    payload = await request.json()
+    body_raw = await request.body()
+    try:
+        payload = await request.json()
+    except Exception:
+        return {"status": "error", "reason": "invalid_json"}
+        
+    signature = request.headers.get("X-Hub-Signature-256")
 
     async with AsyncSessionLocal() as db:
         result = await db.execute(select(Restaurant).where(Restaurant.id == restaurant_id))
@@ -46,62 +72,46 @@ async def receive_webhook(restaurant_id: uuid.UUID, request: Request):
         if not restaurant:
             raise HTTPException(404, "Restaurant not found")
         
-        # Check if restaurant has bot tokens configured
-        if not restaurant.whatsapp_access_token:
-            # We log message but skip bot processing if No Token
-            return {"status": "no_token_configured"}
+        access_token = restaurant.whatsapp_access_token
+        app_secret = restaurant.whatsapp_app_secret
 
-        # Quick dedup + log
-        try:
-            entry = payload.get("entry", [{}])[0]
-            value = entry.get("changes", [{}])[0].get("value", {})
-            messages = value.get("messages", [])
+        if not access_token:
+            logger.error(f"Missing WhatsApp Access Token for restaurant {restaurant_id}")
+            return {"status": "ignored", "reason": "missing_credentials"}
 
-            if not messages:
-                return {"status": "ok"}
+        # Verify signature if secret is provided
+        if app_secret:
+            if not verify_signature(body_raw, signature, app_secret):
+                raise HTTPException(401, "Invalid signature")
 
-            msg = messages[0]
-            wa_message_id = msg.get("id", str(uuid.uuid4()))
+        # Run LangGraph bot
+        initial_state = {
+            "raw_message": payload,
+            "restaurant_id": str(restaurant_id)
+        }
+        
+        # Note: We need to pass the access_token and phone_number_id to the graph
+        # so that different nodes can use them if needed.
+        initial_state["access_token"] = access_token
+        initial_state["phone_number_id"] = restaurant.whatsapp_phone_number_id
+        
+        state = await compiled_graph.ainvoke(initial_state)
 
-            try:
-                log = WhatsAppMessageLog(
-                    restaurant_id=restaurant.id,
-                    wa_message_id=wa_message_id,
-                    direction=MessageDirection.INBOUND,
-                    message_type=msg.get("type", "text"),
-                    raw_payload=payload,
-                )
-                db.add(log)
-                await db.commit()
-            except IntegrityError:
-                return {"status": "duplicate"}
-
-        except Exception:
-            pass
-
-    # Run LangGraph bot (we already have restaurant_id from URL)
-    # The ingest_webhook node will still run but we can ensure it uses the URL ID
-    initial_state = {
-        "raw_message": payload,
-        "restaurant_id": str(restaurant_id) # Pre-fill from URL
-    }
-    state = await compiled_graph.ainvoke(initial_state)
-
-    # Send reply using restaurant credentials
-    final = state.get("final_response")
-    to = state.get("wa_user_id", "")
-
-    if final and to:
-        msg_type = final.get("type", "text")
-        # Dynamic credentials
+        # Send reply using restaurant credentials (NO FALLBACKS)
+        final = state.get("final_response")
+        to = state.get("wa_user_id", "")
         p_id = restaurant.whatsapp_phone_number_id
         token = restaurant.whatsapp_access_token
 
-        if msg_type == "text":
-            await send_text(to, final["body"], p_id, token)
-        elif msg_type == "buttons":
-            await send_interactive_buttons(to, final["body"], final["buttons"], p_id, token)
-        elif msg_type == "list":
-            await send_interactive_list(to, final["body"], final.get("button_label", "View"), final["sections"], p_id, token)
+        if final and to and p_id and token:
+            msg_type = final.get("type", "text")
+            if msg_type == "text":
+                await send_text(to, final["body"], p_id, token)
+            elif msg_type == "buttons":
+                await send_interactive_buttons(to, final["body"], final["buttons"], p_id, token)
+            elif msg_type == "list":
+                await send_interactive_list(to, final["body"], final.get("button_label", "View"), final["sections"], p_id, token)
+        elif final and to:
+            logger.error(f"Cannot send reply: Missing credentials for restaurant {restaurant.name}")
 
     return {"status": "ok"}

@@ -18,6 +18,8 @@ class Restaurant(Base):
     whatsapp_display_number: Mapped[str] = mapped_column(Text, nullable=False)
     whatsapp_access_token: Mapped[str | None] = mapped_column(Text, nullable=True)
     whatsapp_verify_token: Mapped[str] = mapped_column(Text, default="hellodine", nullable=False)
+    whatsapp_app_secret: Mapped[str | None] = mapped_column(Text, nullable=True)
+    whatsapp_app_id: Mapped[str | None] = mapped_column(Text, nullable=True)
     max_branches: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

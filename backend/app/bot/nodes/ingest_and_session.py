@@ -102,8 +102,13 @@ async def resolve_session(state: BotState) -> BotState:
                 state["error"] = "table_not_found"
                 return state
 
+            # Get branch and verify it belongs to this restaurant
             branch_result = await db.execute(select(Branch).where(Branch.id == table.branch_id))
             branch = branch_result.scalar_one()
+
+            if str(branch.restaurant_id) != restaurant_id:
+                state["error"] = "token_restaurant_mismatch"
+                return state
 
             # Upsert customer
             cust_result = await db.execute(

@@ -696,8 +696,13 @@ tr:hover td {
 .modal {
   width: 100%;
   max-width: 500px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
   padding: 30px;
   border-radius: var(--radius);
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: var(--shadow);
 }
 
 .select {

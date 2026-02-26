@@ -8,6 +8,8 @@ interface Restaurant {
     whatsapp_display_number: string;
     whatsapp_access_token?: string;
     whatsapp_verify_token?: string;
+    whatsapp_app_secret?: string;
+    whatsapp_app_id?: string;
     max_branches: number;
     is_active: boolean;
     created_at: string;
@@ -26,6 +28,8 @@ export default function SystemAdmin() {
         whatsapp_display_number: "",
         whatsapp_access_token: "",
         whatsapp_verify_token: "hellodine",
+        whatsapp_app_secret: "",
+        whatsapp_app_id: "",
         max_branches: 1,
         owner_phone: "",
         owner_password: ""
@@ -56,6 +60,8 @@ export default function SystemAdmin() {
                 whatsapp_display_number: formData.whatsapp_display_number,
                 whatsapp_access_token: formData.whatsapp_access_token,
                 whatsapp_verify_token: formData.whatsapp_verify_token,
+                whatsapp_app_secret: formData.whatsapp_app_secret,
+                whatsapp_app_id: formData.whatsapp_app_id,
                 max_branches: formData.max_branches
             });
 
@@ -70,7 +76,7 @@ export default function SystemAdmin() {
                 password: formData.owner_password
             });
 
-            setFormData({ name: "", whatsapp_phone_number_id: "", whatsapp_display_number: "", whatsapp_access_token: "", whatsapp_verify_token: "hellodine", max_branches: 1, owner_phone: "", owner_password: "" });
+            setFormData({ name: "", whatsapp_phone_number_id: "", whatsapp_display_number: "", whatsapp_access_token: "", whatsapp_verify_token: "hellodine", whatsapp_app_secret: "", whatsapp_app_id: "", max_branches: 1, owner_phone: "", owner_password: "" });
             setShowAdd(false);
             fetchRestaurants();
             alert("Restaurant and Owner Account created successfully!");
@@ -89,7 +95,9 @@ export default function SystemAdmin() {
                 whatsapp_phone_number_id: formData.whatsapp_phone_number_id,
                 whatsapp_display_number: formData.whatsapp_display_number,
                 whatsapp_access_token: formData.whatsapp_access_token,
-                whatsapp_verify_token: formData.whatsapp_verify_token
+                whatsapp_verify_token: formData.whatsapp_verify_token,
+                whatsapp_app_secret: formData.whatsapp_app_secret,
+                whatsapp_app_id: formData.whatsapp_app_id
             });
             setEditTarget(null);
             fetchRestaurants();
@@ -122,6 +130,8 @@ export default function SystemAdmin() {
             whatsapp_display_number: r.whatsapp_display_number,
             whatsapp_access_token: r.whatsapp_access_token || "",
             whatsapp_verify_token: r.whatsapp_verify_token || "hellodine",
+            whatsapp_app_secret: r.whatsapp_app_secret || "",
+            whatsapp_app_id: r.whatsapp_app_id || "",
             max_branches: r.max_branches
         });
     };
@@ -247,6 +257,25 @@ export default function SystemAdmin() {
                                     value={formData.whatsapp_verify_token}
                                     onChange={e => setFormData({ ...formData, whatsapp_verify_token: e.target.value })}
                                     placeholder="e.g. hellodine"
+                                />
+                            </div>
+                            <div className="input-group">
+                                <label className="input-label">Meta App ID</label>
+                                <input
+                                    className="input"
+                                    value={formData.whatsapp_app_id}
+                                    onChange={e => setFormData({ ...formData, whatsapp_app_id: e.target.value })}
+                                    placeholder="e.g. 123456789012345"
+                                />
+                            </div>
+                            <div className="input-group">
+                                <label className="input-label">Meta App Secret</label>
+                                <input
+                                    className="input"
+                                    type="password"
+                                    value={formData.whatsapp_app_secret}
+                                    onChange={e => setFormData({ ...formData, whatsapp_app_secret: e.target.value })}
+                                    placeholder="Required for signature verification"
                                 />
                             </div>
                             <div className="input-group">
