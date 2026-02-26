@@ -12,7 +12,10 @@ async def sync_token():
         await db.execute(
             update(Restaurant)
             .where(Restaurant.id == rest_id)
-            .values(whatsapp_access_token=settings.WA_ACCESS_TOKEN)
+            .values(
+                whatsapp_access_token=settings.WA_ACCESS_TOKEN,
+                whatsapp_phone_number_id=settings.WA_PHONE_NUMBER_ID
+            )
         )
         await db.commit()
         print("Successfully updated database with new token from .env")
