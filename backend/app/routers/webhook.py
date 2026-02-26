@@ -85,33 +85,46 @@ async def receive_webhook(restaurant_id: uuid.UUID, request: Request):
                 raise HTTPException(401, "Invalid signature")
 
         # Run LangGraph bot
-        initial_state = {
-            "raw_message": payload,
-            "restaurant_id": str(restaurant_id)
-        }
-        
-        # Note: We need to pass the access_token and phone_number_id to the graph
-        # so that different nodes can use them if needed.
-        initial_state["access_token"] = access_token
-        initial_state["phone_number_id"] = restaurant.whatsapp_phone_number_id
-        
-        state = await compiled_graph.ainvoke(initial_state)
+        try:
+            initial_state = {
+                "raw_message": payload,
+                "restaurant_id": str(restaurant_id)
+            }
+            initial_state["access_token"] = access_token
+            initial_state["phone_number_id"] = restaurant.whatsapp_phone_number_id
+            
+            logger.info(f"Invoking graph for restaurant {restaurant.name} ({restaurant_id})")
+            state = await compiled_graph.ainvoke(initial_state)
+            logger.info(f"Graph execution finished. Intent: {state.get('intent')}, Error: {state.get('error')}")
 
-        # Send reply using restaurant credentials (NO FALLBACKS)
-        final = state.get("final_response")
-        to = state.get("wa_user_id", "")
-        p_id = restaurant.whatsapp_phone_number_id
-        token = restaurant.whatsapp_access_token
+            # Send reply using restaurant credentials (NO FALLBACKS)
+            final = state.get("final_response")
+            to = state.get("wa_user_id", "")
+            p_id = restaurant.whatsapp_phone_number_id
+            token = restaurant.whatsapp_access_token
 
-        if final and to and p_id and token:
-            msg_type = final.get("type", "text")
-            if msg_type == "text":
-                await send_text(to, final["body"], p_id, token)
-            elif msg_type == "buttons":
-                await send_interactive_buttons(to, final["body"], final["buttons"], p_id, token)
-            elif msg_type == "list":
-                await send_interactive_list(to, final["body"], final.get("button_label", "View"), final["sections"], p_id, token)
-        elif final and to:
-            logger.error(f"Cannot send reply: Missing credentials for restaurant {restaurant.name}")
+            if final and to and p_id and token:
+                msg_type = final.get("type", "text")
+                logger.info(f"Sending {msg_type} reply to {to} via {p_id}")
+                try:
+                    if msg_type == "text":
+                        resp = await send_text(to, final["body"], p_id, token)
+                    elif msg_type == "buttons":
+                        resp = await send_interactive_buttons(to, final["body"], final["buttons"], p_id, token)
+                    elif msg_type == "list":
+                        resp = await send_interactive_list(to, final["body"], final.get("button_label", "View"), final["sections"], p_id, token)
+                    
+                    logger.info(f"WhatsApp API response: {resp}")
+                except Exception as e:
+                    logger.exception(f"Failed to send WhatsApp message: {str(e)}")
+            elif final and to:
+                logger.error(f"Cannot send reply: Missing credentials (p_id={p_id}, token={'set' if token else 'missing'})")
+            else:
+                logger.warning(f"No response prepared for message from {to}")
+                
+        except Exception as e:
+            logger.exception(f"Error in LangGraph execution: {str(e)}")
+            # Optional: send a generic error message to the user?
+            # await send_text(to, "Sorry, I'm having trouble processing your request. Please try again later.", p_id, token)
 
     return {"status": "ok"}

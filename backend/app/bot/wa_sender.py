@@ -15,7 +15,8 @@ def get_headers(access_token: str):
 async def send_text(to: str, text: str, phone_number_id: str, access_token: str):
     payload = {"messaging_product": "whatsapp", "to": to, "type": "text", "text": {"body": text}}
     async with httpx.AsyncClient() as client:
-        await client.post(get_whatsapp_url(phone_number_id), json=payload, headers=get_headers(access_token))
+        resp = await client.post(get_whatsapp_url(phone_number_id), json=payload, headers=get_headers(access_token))
+        return resp.json()
 
 
 async def send_interactive_buttons(to: str, body: str, buttons: list[dict], phone_number_id: str, access_token: str):
@@ -36,7 +37,8 @@ async def send_interactive_buttons(to: str, body: str, buttons: list[dict], phon
         },
     }
     async with httpx.AsyncClient() as client:
-        await client.post(get_whatsapp_url(phone_number_id), json=payload, headers=get_headers(access_token))
+        resp = await client.post(get_whatsapp_url(phone_number_id), json=payload, headers=get_headers(access_token))
+        return resp.json()
 
 
 async def send_interactive_list(to: str, body: str, button_label: str, sections: list[dict], phone_number_id: str, access_token: str):
@@ -55,7 +57,8 @@ async def send_interactive_list(to: str, body: str, button_label: str, sections:
         },
     }
     async with httpx.AsyncClient() as client:
-        await client.post(get_whatsapp_url(phone_number_id), json=payload, headers=get_headers(access_token))
+        resp = await client.post(get_whatsapp_url(phone_number_id), json=payload, headers=get_headers(access_token))
+        return resp.json()
 
 
 async def send_template(to: str, template_name: str, language_code: str, phone_number_id: str, access_token: str):
