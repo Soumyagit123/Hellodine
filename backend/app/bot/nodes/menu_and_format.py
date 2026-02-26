@@ -39,9 +39,11 @@ async def menu_retrieval(state: BotState) -> BotState:
                 rows = []
                 for item in items[:10]:
                     veg = VEG_EMOJI["veg"] if item.is_veg else VEG_EMOJI["nonveg"]
+                    # WhatsApp limit for title is 24 chars. Veg emoji + space is ~2-3 chars.
+                    title = f"{veg} {item.name}"[:24]
                     rows.append({
                         "id": f"item_{item.id}",
-                        "title": f"{veg} {item.name[:24]}",
+                        "title": title,
                         "description": f"₹{item.base_price:.0f}",
                     })
                 state["final_response"] = {
@@ -72,7 +74,8 @@ async def menu_retrieval(state: BotState) -> BotState:
             rows = []
             for item in items[:10]:
                 veg = VEG_EMOJI["veg"] if item.is_veg else VEG_EMOJI["nonveg"]
-                rows.append({"id": f"item_{item.id}", "title": f"{veg} {item.name[:24]}", "description": f"₹{item.base_price:.0f}"})
+                title = f"{veg} {item.name}"[:24]
+                rows.append({"id": f"item_{item.id}", "title": title, "description": f"₹{item.base_price:.0f}"})
             
             state["final_response"] = {
                 "type": "list",
@@ -103,9 +106,10 @@ async def menu_retrieval(state: BotState) -> BotState:
             for item in matched[:10]:
                 veg = VEG_EMOJI["veg"] if item.is_veg else VEG_EMOJI["nonveg"]
                 spice = SPICE_EMOJI.get(item.spice_level, "") if item.spice_level else ""
+                title = f"{veg} {item.name}"[:24]
                 rows.append({
                     "id": f"item_{item.id}",
-                    "title": f"{veg} {item.name[:24]}",
+                    "title": title,
                     "description": f"₹{item.base_price:.0f} {spice}",
                 })
             state["final_response"] = {
@@ -127,7 +131,7 @@ async def menu_retrieval(state: BotState) -> BotState:
                 state["final_response"] = {"type": "text", "body": "The menu is currently being updated. Please check back in a few minutes! 📋"}
                 return state
 
-            rows = [{"id": f"cat_{c.id}", "title": c.name, "description": f"~{c.estimated_prep_minutes} min" if c.estimated_prep_minutes else ""} for c in cats[:10]]
+            rows = [{"id": f"cat_{c.id}", "title": c.name[:24], "description": f"~{c.estimated_prep_minutes} min" if c.estimated_prep_minutes else ""} for c in cats[:10]]
             state["final_response"] = {
                 "type": "list",
                 "body": "📋 Our Menu Categories — tap to browse:",
