@@ -108,7 +108,7 @@ async def cart_executor(state: BotState) -> BotState:
                         + f"\n🛒 Cart total: *₹{cart.total:.2f}*\n\nWhat would you like to do next?"
                     ),
                     "buttons": [
-                        {"id": "show_menu", "title": "Add More 📋"},
+                        {"id": f"cat_{menu_item.category_id}", "title": "Add More 📋"},
                         {"id": "view_cart", "title": "View Cart 🛒"},
                         {"id": "confirm_order", "title": "Checkout ✅"},
                     ],
