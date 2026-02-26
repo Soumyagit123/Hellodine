@@ -8,6 +8,8 @@ export default function TablesAdmin() {
     const [newNum, setNewNum] = useState("");
     const [qrResult, setQrResult] = useState<{ table_number: number; wa_link: string } | null>(null);
 
+    const [showAdd, setShowAdd] = useState(false);
+
     useEffect(() => {
         const staff = JSON.parse(localStorage.getItem("hd_staff") || "{}");
         const selectedBranchId = localStorage.getItem("hd_selected_branch");
@@ -29,7 +31,7 @@ export default function TablesAdmin() {
                 } catch { }
             }
         }
-    }, []);
+    }, [showAdd]);
 
     useEffect(() => {
         if (!branchId) return;
@@ -37,11 +39,23 @@ export default function TablesAdmin() {
     }, [branchId]);
 
     async function addTable() {
-        if (!newNum) return;
-        await api.post("/admin/tables", { branch_id: branchId, table_number: parseInt(newNum) });
-        setNewNum("");
-        const r = await api.get(`/admin/tables?branch_id=${branchId}`);
-        setTables(r.data);
+        if (!newNum) {
+            alert("Please enter a table number");
+            return;
+        }
+        if (!branchId) {
+            alert("No branch selected. Please select a branch from the sidebar.");
+            return;
+        }
+        try {
+            await api.post("/admin/tables", { branch_id: branchId, table_number: parseInt(newNum) });
+            setNewNum("");
+            setShowAdd(false);
+            const r = await api.get(`/admin/tables?branch_id=${branchId}`);
+            setTables(r.data);
+        } catch (err: any) {
+            alert(err.response?.data?.detail || "Failed to add table");
+        }
     }
 
     async function generateQR(tableId: string) {
@@ -53,11 +67,7 @@ export default function TablesAdmin() {
         <div>
             <div className="page-header">
                 <div><h1 className="page-title">Tables</h1><p className="page-sub">{tables.length} tables configured</p></div>
-            </div>
-
-            <div className="flex gap-2 mb-3">
-                <input className="input" style={{ maxWidth: 160 }} type="number" placeholder="Table number" value={newNum} onChange={(e) => setNewNum(e.target.value)} />
-                <button className="btn btn-primary" onClick={addTable}>+ Add Table</button>
+                <button className="btn btn-primary" onClick={() => setShowAdd(true)}>+ Add Table</button>
             </div>
 
             <div className="card table-wrap">
@@ -75,6 +85,32 @@ export default function TablesAdmin() {
                     </tbody>
                 </table>
             </div>
+
+            {showAdd && (
+                <div className="modal-overlay" onClick={() => setShowAdd(false)}>
+                    <div className="card modal" onClick={(e) => e.stopPropagation()}>
+                        <h2 style={{ marginBottom: 20 }}>Add New Table</h2>
+                        <div className="input-group">
+                            <label className="input-label">Table Number</label>
+                            <input
+                                className="input"
+                                type="number"
+                                placeholder="Enter table number (e.g. 1)"
+                                value={newNum}
+                                onChange={(e) => setNewNum(e.target.value)}
+                                autoFocus
+                            />
+                        </div>
+                        <p className="text-muted text-sm" style={{ marginBottom: 20 }}>
+                            This table will be added to the currently selected branch.
+                        </p>
+                        <div className="flex gap-2">
+                            <button className="btn btn-outline" onClick={() => setShowAdd(false)}>Cancel</button>
+                            <button className="btn btn-primary" onClick={addTable}>Create Table</button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {qrResult && (
                 <div className="modal-overlay" onClick={() => setQrResult(null)}>
