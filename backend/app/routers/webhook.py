@@ -97,14 +97,16 @@ async def receive_webhook(restaurant_id: uuid.UUID, request: Request):
             initial_state["phone_number_id"] = restaurant.whatsapp_phone_number_id
             
             logger.info(f"Invoking graph for restaurant {restaurant.name} ({restaurant_id})")
-            state = await compiled_graph.ainvoke(initial_state)
-            logger.info(f"Graph execution finished. Intent: {state.get('intent')}, Error: {state.get('error')}")
+            result = await compiled_graph.ainvoke(initial_state)
+            logger.info(f"Graph execution finished. Intent: {result.get('intent')}, Error: {result.get('error')}")
 
-            # Send reply using restaurant credentials (NO FALLBACKS)
-            final = state.get("final_response")
-            to = state.get("wa_user_id", "")
+            # Send the response back to WhatsApp
+            final = result.get("final_response")
+            to = result.get("wa_user_id") # MUST be the phone number (WA_ID)
             p_id = restaurant.whatsapp_phone_number_id
             token = restaurant.whatsapp_access_token
+            
+            print(f"WEBHOOK FLOW END: intent={result.get('intent')}, to={to}, has_response={bool(final)}")
 
             if final and to and p_id and token:
                 msg_type = final.get("type", "text")
