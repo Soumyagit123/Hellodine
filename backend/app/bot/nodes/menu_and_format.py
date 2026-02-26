@@ -37,15 +37,22 @@ async def menu_retrieval(state: BotState) -> BotState:
                     return state
 
                 rows = []
-                for item in items[:10]:
+                for item in items[:9]: # Show 9 items + 1 'Back' row
                     veg = VEG_EMOJI["veg"] if item.is_veg else VEG_EMOJI["nonveg"]
-                    # WhatsApp limit for title is 24 chars. Veg emoji + space is ~2-3 chars.
                     title = f"{veg} {item.name}"[:24]
                     rows.append({
                         "id": f"item_{item.id}",
                         "title": title,
                         "description": f"₹{item.base_price:.0f}",
                     })
+                
+                # Navigation Link
+                rows.append({
+                    "id": "show_menu",
+                    "title": "🔙 All Categories",
+                    "description": "View other menu sections"
+                })
+
                 state["final_response"] = {
                     "type": "list",
                     "body": "Select an item to add to your cart: 👇",
@@ -171,7 +178,7 @@ async def item_info_node(state: BotState) -> BotState:
             "buttons": [
                 {"id": f"qty_1_{item.id}", "title": "1 Portion"},
                 {"id": f"qty_2_{item.id}", "title": "2 Portions"},
-                {"id": f"qty_5_{item.id}", "title": "5 Portions"},
+                {"id": f"qty_3_{item.id}", "title": "3 Portions"},
             ]
         }
     return state
