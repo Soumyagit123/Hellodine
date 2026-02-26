@@ -141,6 +141,42 @@ async def menu_retrieval(state: BotState) -> BotState:
     return state
 
 
+async def item_info_node(state: BotState) -> BotState:
+    """Show item details and ask for quantity using buttons."""
+    entities = state.get("entities", {})
+    item_id = entities.get("item_id")
+    
+    if not item_id:
+        state["final_response"] = {"type": "text", "body": "Which item? Please select from the menu. 📋"}
+        return state
+
+    async with AsyncSessionLocal() as db:
+        res = await db.execute(select(MenuItem).where(MenuItem.id == uuid.UUID(item_id)))
+        item = res.scalar_one_or_none()
+        
+        if not item:
+            state["final_response"] = {"type": "text", "body": "Item not found. 📋"}
+            return state
+
+        veg = VEG_EMOJI["veg"] if item.is_veg else VEG_EMOJI["nonveg"]
+        body = (
+            f"*{veg} {item.name}*\n"
+            f"💰 Price: ₹{item.base_price:.0f}\n\n"
+            "How many portions would you like? 👇"
+        )
+        
+        state["final_response"] = {
+            "type": "buttons",
+            "body": body,
+            "buttons": [
+                {"id": f"qty_1_{item.id}", "title": "1 Portion"},
+                {"id": f"qty_2_{item.id}", "title": "2 Portions"},
+                {"id": f"qty_5_{item.id}", "title": "5 Portions"},
+            ]
+        }
+    return state
+
+
 async def response_formatter(state: BotState) -> BotState:
     """Build WA-sendable payload from state.final_response."""
     # final_response is already set by other nodes; this node is a pass-through

@@ -105,12 +105,12 @@ async def cart_executor(state: BotState) -> BotState:
                     "body": (
                         f"✅ Added {veg} *{menu_item.name}* ×{quantity}!\n"
                         + (f"📝 Note: {notes}\n" if notes else "")
-                        + f"\n🛒 Cart total: *₹{cart.total:.2f}*\n\nWhat would you like to do?"
+                        + f"\n🛒 Cart total: *₹{cart.total:.2f}*\n\nWhat would you like to do next?"
                     ),
                     "buttons": [
-                        {"id": "view_cart", "title": "View Cart 🛒"},
                         {"id": "show_menu", "title": "Add More 📋"},
-                        {"id": "confirm_order", "title": "Place Order ✅"},
+                        {"id": "view_cart", "title": "View Cart 🛒"},
+                        {"id": "confirm_order", "title": "Checkout ✅"},
                     ],
                 }
             except ValueError as e:
@@ -185,7 +185,6 @@ async def checkout_guard_node(state: BotState) -> BotState:
                 {"id": "edit_cart", "title": "✏️ Edit Cart"},
             ],
         }
-        state["intent"] = "CONFIRM_PREVIEW"
     return state
 
 

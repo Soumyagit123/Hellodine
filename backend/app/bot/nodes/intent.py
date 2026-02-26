@@ -60,41 +60,57 @@ async def intent_router(state: BotState) -> BotState:
 
     # Quick rule-based shortcuts (avoid LLM for common patterns)
     lower = text.lower().strip()
-    if any(w in lower for w in ["confirm", "place order", "order karo", "हाँ", "yes", "ok"]):
-        state["intent"] = "CONFIRM"
-        state["entities"] = {}
-        return state
-    if any(w in lower for w in ["bill", "check", "pay", "payment", "bill please", "bil"]):
-        state["intent"] = "BILL"
-        state["entities"] = {}
-        return state
-    if any(w in lower for w in ["cart", "my order", "show cart", "what i ordered", "टोकरी"]):
-        state["intent"] = "CART_VIEW"
-        state["entities"] = {}
-        return state
-    if any(w in lower for w in ["menu", "list", "show", "browse", "सूची", "show_menu"]):
-        state["intent"] = "BROWSE"
-        state["entities"] = {}
-        return state
 
-    # Interactive Replies (cat_, item_, or button IDs)
+    # 1. Interactive Button/List IDs (Priority)
     if lower == "do_confirm":
-        state["intent"] = "CONFIRM_PREVIEW"
+        state["intent"] = "PLACE_ORDER" # Kitchen!
         return state
     if lower == "confirm_order":
-        state["intent"] = "CONFIRM"
+        state["intent"] = "CONFIRM_SUMMARY" # Preview
         return state
     if lower == "view_cart" or lower == "edit_cart":
         state["intent"] = "CART_VIEW"
         return state
-    
+    if lower == "show_menu":
+        state["intent"] = "BROWSE"
+        return state
+
+    # Interactive Quantity Choice: qty_2_UUID
+    if lower.startswith("qty_"):
+        parts = lower.split("_")
+        if len(parts) >= 3:
+            state["intent"] = "ADD_ITEM"
+            state["entities"] = {"item_id": parts[2], "quantity": int(parts[1])}
+            return state
+
+    # Item selection from menu -> Show item info / qty buttons
+    if lower.startswith("item_"):
+        state["intent"] = "ITEM_INFO"
+        state["entities"] = {"item_id": lower.replace("item_", "")}
+        return state
+
+    # Category selection
     if lower.startswith("cat_"):
         state["intent"] = "BROWSE"
         state["entities"] = {"category_id": lower.replace("cat_", "")}
         return state
-    if lower.startswith("item_"):
-        state["intent"] = "ADD_ITEM"
-        state["entities"] = {"item_id": lower.replace("item_", ""), "quantity": 1}
+
+    # 2. Text Shortcuts
+    if any(w in lower for w in ["confirm", "place order", "done", "चेकआउट", "order kar"]):
+        state["intent"] = "CONFIRM_SUMMARY"
+        state["entities"] = {}
+        return state
+    if any(w in lower for w in ["bill", "check", "pay", "payment", "बिल"]):
+        state["intent"] = "BILL"
+        state["entities"] = {}
+        return state
+    if any(w in lower for w in ["cart", "my order", "show cart", "टोकरी"]):
+        state["intent"] = "CART_VIEW"
+        state["entities"] = {}
+        return state
+    if any(w in lower for w in ["menu", "list", "show", "browse", "सूची"]):
+        state["intent"] = "BROWSE"
+        state["entities"] = {}
         return state
 
     # Veg / Non-Veg Filtering
