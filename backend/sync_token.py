@@ -14,7 +14,8 @@ async def sync_token():
             .where(Restaurant.id == rest_id)
             .values(
                 whatsapp_access_token=settings.WA_ACCESS_TOKEN,
-                whatsapp_phone_number_id=settings.WA_PHONE_NUMBER_ID
+                whatsapp_phone_number_id=settings.WA_PHONE_NUMBER_ID,
+                whatsapp_display_number="919090851660"
             )
         )
         await db.commit()
