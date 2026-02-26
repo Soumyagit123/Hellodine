@@ -13,6 +13,7 @@ import hmac
 import hashlib
 import uuid
 import logging
+import json
 
 logger = logging.getLogger(__name__)
 
@@ -61,7 +62,9 @@ async def receive_webhook(restaurant_id: uuid.UUID, request: Request):
     body_raw = await request.body()
     try:
         payload = await request.json()
-    except Exception:
+        print(f"WEBHOOK RECEIVED: {json.dumps(payload, indent=2)}")
+    except Exception as e:
+        print(f"WEBHOOK JSON ERROR: {str(e)}")
         return {"status": "error", "reason": "invalid_json"}
         
     signature = request.headers.get("X-Hub-Signature-256")
@@ -105,7 +108,7 @@ async def receive_webhook(restaurant_id: uuid.UUID, request: Request):
 
             if final and to and p_id and token:
                 msg_type = final.get("type", "text")
-                logger.info(f"Sending {msg_type} reply to {to} via {p_id}")
+                print(f"SENDING REPLY: type={msg_type}, to={to}, p_id={p_id}")
                 try:
                     if msg_type == "text":
                         resp = await send_text(to, final["body"], p_id, token)
@@ -114,12 +117,16 @@ async def receive_webhook(restaurant_id: uuid.UUID, request: Request):
                     elif msg_type == "list":
                         resp = await send_interactive_list(to, final["body"], final.get("button_label", "View"), final["sections"], p_id, token)
                     
+                    print(f"META RESPONSE: {resp}")
                     logger.info(f"WhatsApp API response: {resp}")
                 except Exception as e:
+                    print(f"SEND ERROR: {str(e)}")
                     logger.exception(f"Failed to send WhatsApp message: {str(e)}")
             elif final and to:
+                print(f"MISSING CREDENTIALS: p_id={p_id}, token={'set' if token else 'missing'}")
                 logger.error(f"Cannot send reply: Missing credentials (p_id={p_id}, token={'set' if token else 'missing'})")
             else:
+                print(f"NO RESPONSE PREPARED for {to}")
                 logger.warning(f"No response prepared for message from {to}")
                 
         except Exception as e:

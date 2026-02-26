@@ -8,9 +8,19 @@ import app.models  # ensure all models are registered before create_all
 from app.routers import auth, restaurant, menu, cart, orders, billing, webhook
 
 
+import logging
+
+# Configure logging to stdout
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    force=True
+)
+logger = logging.getLogger(__name__)
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Tables are already created via migrations/seeding
+    logger.info("Application starting up...")
     yield
 
 
